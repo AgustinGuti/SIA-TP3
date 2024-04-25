@@ -39,7 +39,8 @@ class Perceptron:
             self.bias = self.bias + base_delta
             self.weights = self.weights + base_delta * value
 
-            error = sum([abs(expected_output[mu] - self.compute_activation(data_input[mu])) for mu in range(0, len(data_input))])
+            # error = sum([abs(expected_output[mu] - self.compute_activation(data_input[mu])) for mu in range(0, len(data_input))])
+            error = 0.5*sum((expected_output[mu] - self.compute_activation(data_input[mu]))**2 for mu in range(0, len(data_input)))
 
             weight_history.append(self.weights)
             bias_history.append(self.bias)
@@ -51,6 +52,7 @@ class Perceptron:
             i += 1
 
         print("Iterations: ", i)
+        print("Error:", self.min_error)
         return self.min_weights, self.min_bias, weight_history, error_history, bias_history
 
 def main():

@@ -4,13 +4,16 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 from collections import deque
+from multiprocessing import Process
+
 
 class NeuronParams:
-    def __init__(self, dimensions, learning_rate=0.1, activation_function='linear', beta=100):
+    def __init__(self, dimensions, learning_rate=0.1, activation_function='linear', beta=1):
         self.dimensions = dimensions
         self.learning_rate = learning_rate
         self.activation_function = activation_function
         self.beta = beta
+
 
 class NeuronNode:
     def __init__(self, params: NeuronParams, layer_num=0, id=0):
@@ -25,6 +28,12 @@ class NeuronNode:
         self.learning_rate = params.learning_rate
         self.activation_function = params.activation_function
         self.beta = params.beta
+
+    def __eq__(self, value: object) -> bool:
+        return self.id == value.id and self.layer_num == value.layer_num
+    
+    def __hash__(self) -> int:
+        return hash((self.id, self.layer_num))
  
     def add_parent(self, parent):
         self.parents.append(parent)
@@ -32,10 +41,13 @@ class NeuronNode:
     def add_children(self, child):
         self.children.append(child)
 
-    def print_tree(self):
+    def print_tree(self, printed_nodes=set()):
+        if self in printed_nodes:
+            return
         print(f'Layer: {self.layer_num} - Neuron: {self.id} - Parents: {[parent.id for parent in self.parents]} - Weights: {self.weights}')
+        printed_nodes.add(self)
         for child in self.children:
-            child.print_tree()       
+            child.print_tree(printed_nodes)       
             
     def set_min_weights(self):
         self.min_weights = self.weights
@@ -54,7 +66,7 @@ class NeuronNode:
         'linear': lambda x, b=0: 1,
         'sigmoid': lambda x, b: 2*b*np.exp(-2*b*x) / (1 + np.exp(-2*b*x))**2,
         'tan_h': lambda x, b: b*(1 - np.tanh(b*x)**2),
-        'step': lambda x, b: 1
+        'step': lambda x, b: 0
     }        
 
     def compute_excitement(self, data_input, best=False):
@@ -71,31 +83,51 @@ class NeuronNode:
         return self.compute_activation(self.compute_excitement(data_input, best))
     
     def calculate_delta_weights(self, data_input, expected_output):
-        aux = sum(parent.calculate_delta_weights(data_input, expected_output)[1]*parent.weights[self.id] for parent in self.parents)
-        excitement = self.children[self.id].compute_excitement(data_input)
-        derivative = self.derivative_activation_functions[self.activation_function](excitement, self.beta)
 
         if len(self.parents) == 0:
             difference = expected_output - self.predict(data_input)
             derivative = self.derivative_activation_functions[self.activation_function](self.compute_excitement(data_input), self.beta)
+            # print(f'Layer: {self.layer_num} - Neuron: {self.id} - Excitement: {self.compute_excitement(data_input)}')
+            # print(f'Layer: {self.layer_num} - Neuron: {self.id} - Difference: {difference} - Derivative: {derivative}')
             delta = difference * derivative
             delta_weights = []
             for i in range(len(self.weights)):
                 delta_weights.append(self.learning_rate * delta * self.children[i].predict(data_input))
+            # print(f'Layer: {self.layer_num} - Neuron: {self.id} - Delta: {delta} - Delta Weights: {delta_weights}')
             return delta_weights, delta
-    
+
+        aux = sum(parent.calculate_delta_weights(data_input, expected_output)[1] * parent.weights[self.id] for parent in self.parents)
+
+        excitement = self.compute_excitement(data_input)
+        derivative = self.derivative_activation_functions[self.activation_function](excitement, self.beta)
+
+        delta = aux * derivative
+
         delta_weights = []
         for i in range(len(self.weights)):
-            delta_weights.append(self.learning_rate * aux * derivative * self.children[i].predict(data_input))
-        delta = aux * derivative
+            if len(self.children) == 0:
+                delta_weights.append(self.learning_rate * delta * data_input[i])
+            else:
+                delta_weights.append(self.learning_rate * delta * self.children[i].predict(data_input))
+
+        # print(f'Layer: {self.layer_num} - Neuron: {self.id} - Delta: {delta} - Delta Weights: {delta_weights}')
+        
+
         return delta_weights, delta
 
-    def train(self, data_input, expected_output):
+    def train(self, data_input, expected_output):            
         delta_weights, delta = self.calculate_delta_weights(data_input, expected_output)
+        # print(f'Layer: {self.layer_num} - Neuron: {self.id} - Delta: {delta} - Delta Weights: {delta_weights}')
         self.weights = self.weights + delta_weights
         self.bias = self.bias + self.learning_rate * delta
+        for child in self.children:
+            child.train(data_input, expected_output)
         return delta, self.weights
 
+def binary_crossentropy(expected_output, result):
+    epsilon = 1e-10
+    result = np.clip(result, epsilon, 1 - epsilon)
+    return -expected_output * np.log(result + epsilon) - (1 - expected_output) * np.log(1 - result + epsilon)
 
 class NeuronTree:
     def __init__(self, params: list, max_iter=1000):
@@ -126,9 +158,20 @@ class NeuronTree:
             input_value = data_input[mu]
             self.root.train(input_value, expected_output[mu])
 
-            error = sum((expected_output[mu] - self.process(data_input[mu]))**2 for mu in range(0, len(data_input)))/2
-            if error < self.min_error:
-                self.min_error = error
+            # error = sum((expected_output[mu] - self.process(data_input[mu]))**2 for mu in range(0, len(data_input)))/2
+        
+            error = 0
+            for i in range(len(data_input)):
+                result = self.process(data_input[i])
+                result = 0 if result <= 0 else 1
+                expected = 0 if expected_output[i] == -1 else 1
+                # print(f'Expected: {expected} - Result: {result}')
+                error += binary_crossentropy(expected, result)
+
+            mean_error = error / len(data_input)
+
+            if mean_error < self.min_error:
+                self.min_error = mean_error
                 self.root.set_min_weights()
             iterations += 1
         return self.min_error
@@ -143,48 +186,55 @@ def calculate_error(data, expected_output):
     return sum([abs(expected_output[mu] - data[mu])**2 for mu in range(0, len(data))])/2
 
 def main():
-    # data = pd.read_csv('TP3-ej2-conjunto.csv')
+#     data = pd.read_csv('TP3-ej2-conjunto.csv')
 
-    # example_data_input = data[[col for col in data.columns if col.startswith('x')]].values    
-    # example_data_output = data['y'].values
+#     example_data_input = data[[col for col in data.columns if col.startswith('x')]].values    
+#     example_data_output = data['y'].values
 
-    example_data_input = np.array([[-1, 1], [1, -1], [-1, -1], [1, 1]])
+    example_data_input = np.array([[-1, 1],  [1, -1], [-1, -1], [1, 1]])
     # example_data_input = np.array([[1], [2], [3], [4], [5], [6], [7], [8], [9], [10], [11], [12], [13], [14], [15]])
-    example_data_input = np.insert(example_data_input, 0, 1, axis=1)
+    # example_data_input = np.array([[2, 2], [1, 2], [3, 3], [4, 4], [2, 4], [3, 2], [1, 3], [4, 2], [3, 4], [2, 3], [1, 4], [4, 1], [3, 1], [2, 1], [1, 1]])
+
+    # example_data_input = np.insert(example_data_input, 0, 1, axis=1)
     example_data_output = np.array([1, 1, -1, -1])
     # example_data_output = np.array([2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30])
+    # example_data_output = np.array([4, 3, 6, 8, 6, 5, 4, 6, 7, 5, 5, 5, 4, 3, 2])
 
     dimensions = len(example_data_input[0])
 
-    layer_one = [NeuronParams(dimensions, 0.01, 'linear', 0.1) for _ in range(3)]
-    layer_two = [NeuronParams(len(layer_one), 0.01, 'linear', 0.1) for _ in range(1)]
-    # layer_three = [NeuronParams(len(layer_two), 0.01, 'linear', 0.01) for _ in range(1)]
+    layer_one = [NeuronParams(dimensions, 0.001, 'linear') for _ in range(2)]
+    layer_two = [NeuronParams(len(layer_one), 0.001, 'linear', 0.01) for _ in range(3)]
+    layer_three = [NeuronParams(len(layer_two), 0.01, 'sigmoid', 0.1) for _ in range(1)]
 
-    neurons_params = [layer_one, layer_two]
+    neurons_params = [layer_one, layer_two, layer_three]
     tree = NeuronTree(neurons_params, 1000)
-    print(tree.root.print_tree())
     min_error = tree.train(example_data_input, example_data_output)
     print(f'Min error: {min_error}')
+    print(tree.root.print_tree())
+
 
     result_1 = tree.predict(example_data_input[0])
     result_2 = tree.predict(example_data_input[1])
     result_3 = tree.predict(example_data_input[2])
     result_4 = tree.predict(example_data_input[3])
-    print(f'Result 1: {result_1}')
-    print(f'Result 2: {result_2}')
-    print(f'Result 3: {result_3}')
-    print(f'Result 4: {result_4}')
+    # result_5 = tree.predict([1, 4, 3])
+    print(f'Result 1: {result_1} - expected: {example_data_output[0]}')
+    print(f'Result 2: {result_2} - expected: {example_data_output[1]}')
+    print(f'Result 3: {result_3} - expected: {example_data_output[2]}')
+    print(f'Result 4: {result_4} - expected: {example_data_output[3]}')
+    # print(f'Result 5: {result_5}')
 
     fig, ax = plt.subplots()
     x = np.linspace(-2, 2, 100)
     y = np.linspace(-2, 2, 100)
     X, Y = np.meshgrid(x, y)
 
-    Z = np.array([[tree.predict([1, x_val, y_val]) for x_val in x] for y_val in y])
-    print(Z)
+    Z = np.array([[tree.predict([x_val, y_val]) for x_val in x] for y_val in y])
+    
+    cp = ax.contourf(X, Y, Z, levels=1,  cmap='coolwarm')
+    plt.colorbar(cp)
 
-    ax.contourf(X, Y, Z, levels=1, cmap='coolwarm')
-    ax.scatter(example_data_input[:, 1], example_data_input[:, 2], c=example_data_output, cmap='coolwarm')
+    ax.scatter(example_data_input[:, 0], example_data_input[:, 1], c=example_data_output, cmap='coolwarm')
 
     plt.show()
 

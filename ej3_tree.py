@@ -14,12 +14,14 @@ class NeuronParams:
 
 class NeuronNode:
     def __init__(self, params: NeuronParams, layer_num=0, id=0):
-        self.weights = np.random.rand(params.dimensions)
+        self.weights = np.array([1]*params.dimensions)
+        self.bias = 1
         self.parents = []
         self.children = []
         self.id = id
         self.layer_num = layer_num
         self.min_weights = None
+        self.min_bias = None
         self.learning_rate = params.learning_rate
         self.activation_function = params.activation_function
         self.beta = params.beta
@@ -37,6 +39,7 @@ class NeuronNode:
             
     def set_min_weights(self):
         self.min_weights = self.weights
+        self.min_bias = self.bias
         for child in self.children:
             child.set_min_weights()
 
@@ -56,9 +59,10 @@ class NeuronNode:
 
     def compute_excitement(self, data_input, best=False):
         weights = self.min_weights if best else self.weights
+        bias = self.min_bias if best else self.bias
         if len(self.children) != 0:
             data_input = [child.predict(data_input, best) for child in self.children]
-        return sum(data_input * weights)
+        return sum(data_input * weights) + bias
 
     def compute_activation(self, excitement):
         return self.activation_functions[self.activation_function](excitement, self.beta)
@@ -85,10 +89,11 @@ class NeuronNode:
             delta_weights.append(self.learning_rate * aux * derivative * self.children[i].predict(data_input))
         delta = aux * derivative
         return delta_weights, delta
-    
+
     def train(self, data_input, expected_output):
         delta_weights, delta = self.calculate_delta_weights(data_input, expected_output)
         self.weights = self.weights + delta_weights
+        self.bias = self.bias + self.learning_rate * delta
         return delta, self.weights
 
 
@@ -144,17 +149,19 @@ def main():
     # example_data_output = data['y'].values
 
     example_data_input = np.array([[-1, 1], [1, -1], [-1, -1], [1, 1]])
+    # example_data_input = np.array([[1], [2], [3], [4], [5], [6], [7], [8], [9], [10], [11], [12], [13], [14], [15]])
     example_data_input = np.insert(example_data_input, 0, 1, axis=1)
     example_data_output = np.array([1, 1, -1, -1])
+    # example_data_output = np.array([2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30])
 
     dimensions = len(example_data_input[0])
-    # Creates a neural network with 2 layers, the first one with 3 neurons and the second one with 10 neurons.
-    # The first layer has 3 neurons with linear activation function and the second layer has 10 neurons with step activation function.
-    layer_one = [NeuronParams(dimensions, 0.1, 'tan_h', 0.1) for _ in range(10)]
-    layer_two = [NeuronParams(len(layer_one), 0.1, 'linear', 0.1) for _ in range(1)]
-    layer_three = [NeuronParams(len(layer_two), 0.05, 'linear', 0.01) for _ in range(1)]
-    neurons_params = [layer_one, layer_two, layer_three]
-    tree = NeuronTree(neurons_params, 100)
+
+    layer_one = [NeuronParams(dimensions, 0.01, 'linear', 0.1) for _ in range(3)]
+    layer_two = [NeuronParams(len(layer_one), 0.01, 'linear', 0.1) for _ in range(1)]
+    # layer_three = [NeuronParams(len(layer_two), 0.01, 'linear', 0.01) for _ in range(1)]
+
+    neurons_params = [layer_one, layer_two]
+    tree = NeuronTree(neurons_params, 1000)
     print(tree.root.print_tree())
     min_error = tree.train(example_data_input, example_data_output)
     print(f'Min error: {min_error}')
@@ -167,8 +174,6 @@ def main():
     print(f'Result 2: {result_2}')
     print(f'Result 3: {result_3}')
     print(f'Result 4: {result_4}')
-
-    # neural_network.print_weights()
 
     fig, ax = plt.subplots()
     x = np.linspace(-2, 2, 100)

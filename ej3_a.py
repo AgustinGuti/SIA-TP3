@@ -28,9 +28,15 @@ class NeuralNetwork:
     def process(self, data_input):
         return self.predict(data_input, False)
 
+    def print_weights(self):
+        for layer in self.layers:
+            print(f'Layer: {layer.id}')
+            for neuron in layer.neurons:
+                print(f'Neuron: {neuron.id} - Weights: {neuron.weights} - Bias: {neuron.bias}')
+
     def train(self, data_input, expected_output):
         iteration = 0
-        while self.min_error > 0.1 and iteration < self.max_iter:
+        while self.min_error > 1e-3 and iteration < self.max_iter:
             mu = np.random.randint(0, len(data_input))
 
             results = []
@@ -38,23 +44,35 @@ class NeuralNetwork:
             for layer in self.layers:
                 next_layer_input = layer.process(next_layer_input)
                 results.append(next_layer_input)
-                # OK
             
-           
-            
-            next_layer_deltas, next_layer_weights = self.layers[-1].train_last_layer(expected_output[mu], results[-1])
+            # print(f'Results: {results}')
+            next_layer_deltas, next_layer_weights = self.layers[-1].train_last_layer(expected_output[mu], results[-2])
 
-            for i, layer in enumerate(list(reversed(self.layers))[:-1]):
-                next_layer_deltas, next_layer_weights = layer.train(results[layer.id - 1], next_layer_deltas, next_layer_weights)
+            for layer in list(reversed(self.layers))[1:]:
+                training_input = results[layer.id-1]
+                if layer.id == 0:
+                    training_input = data_input[mu]
+                next_layer_deltas, next_layer_weights = layer.train(training_input, next_layer_deltas, next_layer_weights)
 
             error = sum((expected_output[mu] - self.process(data_input[mu]))**2 for mu in range(0, len(expected_output)))/2
 
+            # error = 0
+            # for i in range(len(data_input)):
+            #     result = self.process(data_input[i])[0]
+            #     result = 0 if result <= 0 else 1
+            #     expected = 0 if expected_output[i] == -1 else 1
+            #     # print(f'Expected: {expected} - Result: {result}')
+            #     error += binary_crossentropy(expected, result)
+
+
             if error < self.min_error:
+                # print(f'Iteration: {iteration} - Error: {error}')
                 self.min_error = error
                 for layer in self.layers:
                     layer.set_min_weights()
+
             iteration += 1
-        return self.min_error
+        return self.min_error, iteration
     
 def binary_crossentropy(expected_output, result):
     epsilon = 1e-10
@@ -107,14 +125,12 @@ class Neuron:
         self.beta = params.beta
 
     activation_functions = {
-        'step': lambda x, b: 1 if x >= 0 else -1,
         'linear': lambda x, b=0: x,
         'sigmoid': lambda x, b: 1 / (1 + np.exp(-2*b*x)),
         'tan_h': lambda x, b: np.tanh(b*x)
     }
 
     derivative_activation_functions = {
-        'step': lambda x, b: 1,
         'linear': lambda x, b=0: 1,
         'sigmoid': lambda x, b: 2*b*np.exp(-2*b*x) / (1 + np.exp(-2*b*x))**2,
         'tan_h': lambda x, b: b*(1 - np.tanh(b*x)**2)
@@ -134,6 +150,7 @@ class Neuron:
     def calculate_delta_weights(self, data_input, next_layer_deltas, next_layer_weights):
         excitement = self.compute_excitement(data_input)
         aux = sum(next_layer_deltas[i] * next_layer_weights[i][self.id] for i in range(len(next_layer_deltas)))
+        # print(f'Layer: {self.layer_id} - Neuron: {self.id} - Aux: {aux}')
         derivative = self.derivative_activation_functions[self.activation_function](excitement, self.beta)
         delta = aux * derivative
         return self.learning_rate * delta, delta
@@ -145,7 +162,7 @@ class Neuron:
         delta = (expected_output - activation) * derivative
         delta_weights = []
         for i in range(len(self.weights)):
-            delta_weights.append(self.learning_rate * delta * value[0])
+            delta_weights.append(self.learning_rate * delta * value[i])
 
         self.weights = self.weights + delta_weights
         self.bias = self.bias + self.learning_rate * delta
@@ -154,11 +171,12 @@ class Neuron:
     def train(self, data_input, next_layer_delta, next_layer_weights):
         delta_weight, delta = self.calculate_delta_weights(data_input, next_layer_delta, next_layer_weights)
         delta_weights = []
+
         for i in range(len(self.weights)):
-            delta_weights.append(self.learning_rate * delta * data_input[i])
+            delta_weights.append(delta_weight * data_input[i])
 
         self.weights = self.weights + delta_weights
-        self.bias = self.bias + self.learning_rate * delta
+        self.bias = self.bias + delta_weight
         return delta, self.weights
 
 def main():
@@ -172,14 +190,16 @@ def main():
     example_data_output = np.array([1, 1, -1, -1])
 
     dimensions = len(example_data_input[0])
-    layer_one = [NeuronParams(dimensions, 0.01, 'linear', 0) for _ in range(3)]
-    layer_two = [NeuronParams(len(layer_one), 0.1, 'sigmoid', 1) for _ in range(2)]
-    layer_three = [NeuronParams(len(layer_two), 0.01, 'tan_h', 0.5) for _ in range(1)]
+    layer_one = [NeuronParams(dimensions, 1, 'linear', 0.1) for _ in range(1)]
+    layer_two = [NeuronParams(len(layer_one), 1, 'tan_h', 0.2) for _ in range(5)]
+    layer_three = [NeuronParams(len(layer_two), 1, 'tan_h', 0.5) for _ in range(1)]
+
     neurons_params = [layer_one, layer_two, layer_three]
 
-    neural_network = NeuralNetwork(neurons_params, 1000)
-    min_error = neural_network.train(example_data_input, example_data_output)
-    print(f'Min error: {min_error}')
+    neural_network = NeuralNetwork(neurons_params, 10000)
+    min_error, iterations = neural_network.train(example_data_input, example_data_output)
+    neural_network.print_weights()
+    print(f'Min error: {min_error} - Iterations: {iterations}')
 
 
     result_1 = neural_network.predict(example_data_input[0])
@@ -200,8 +220,7 @@ def main():
 
     Z = np.array([[neural_network.predict([x_val, y_val])[0] for x_val in x] for y_val in y])
     
-    cp = ax.contourf(X, Y, Z, levels=1,  cmap='coolwarm')
-    plt.colorbar(cp)
+    cp = ax.contourf(X, Y, Z, levels=0,  cmap='coolwarm')
 
     ax.scatter(example_data_input[:, 0], example_data_input[:, 1], c=example_data_output, cmap='coolwarm')
 

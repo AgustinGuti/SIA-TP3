@@ -98,7 +98,7 @@ def main():
         return line,
 
     ani = animation.FuncAnimation(fig, update, frames=len(weight_history_extended), init_func=init, blit=True, interval=100, repeat_delay=1000)
-    ani.save('results/result_animation.gif', writer='imagemagick', fps=fps)
+    # ani.save('results/result_animation.gif', writer='imagemagick', fps=fps)
     # ani.save('results/result_animation.mp4', writer='ffmpeg', fps=fps)
 
     plt.figure()

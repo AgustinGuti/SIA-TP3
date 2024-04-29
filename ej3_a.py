@@ -28,6 +28,15 @@ class NeuralNetwork:
     def process(self, data_input):
         return self.predict(data_input, False)
 
+    def get_weights(self):
+        return [[(neuron.weights, neuron.bias) for neuron in layer.neurons] for layer in self.layers]
+    
+    def set_min_weights(self, weights):
+        for i, layer in enumerate(self.layers):
+            for j, neuron in enumerate(layer.neurons):
+                neuron.min_weights = weights[i][j][0]
+                neuron.min_bias = weights[i][j][1]
+
     def print_weights(self):
         for layer in self.layers:
             print(f'Layer: {layer.id}')
@@ -36,6 +45,8 @@ class NeuralNetwork:
 
     def train(self, data_input, expected_output):
         iteration = 0
+        best_weights_history = []
+        error_history = []
         while self.min_error > 1e-3 and iteration < self.max_iter:
             mu = np.random.randint(0, len(data_input))
 
@@ -67,12 +78,14 @@ class NeuralNetwork:
 
             if error < self.min_error:
                 # print(f'Iteration: {iteration} - Error: {error}')
+                error_history.append(error)
+                best_weights_history.append(self.get_weights())
                 self.min_error = error
                 for layer in self.layers:
                     layer.set_min_weights()
 
             iteration += 1
-        return self.min_error, iteration
+        return self.min_error, iteration, best_weights_history, error_history
     
 def binary_crossentropy(expected_output, result):
     epsilon = 1e-10
@@ -96,7 +109,7 @@ class Layer:
         layer_deltas = []
         layer_weights = []
         for i, neuron in enumerate(self.neurons):
-            neuron_delta, neuron_weights = neuron.train_last_layer(expected_output, value)
+            neuron_delta, neuron_weights = neuron.train_last_layer(expected_output[i], value)
             layer_deltas.append(neuron_delta)
             layer_weights.append(neuron_weights)
         
@@ -160,6 +173,7 @@ class Neuron:
         activation = self.compute_activation(excitement)
         derivative = self.derivative_activation_functions[self.activation_function](excitement, self.beta)
         delta = (expected_output - activation) * derivative
+
         delta_weights = []
         for i in range(len(self.weights)):
             delta_weights.append(self.learning_rate * delta * value[i])
@@ -187,7 +201,7 @@ def main():
 
     example_data_input = np.array([[-1, 1], [1, -1], [-1, -1], [1, 1]])
     # example_data_input = np.insert(example_data_input, 0, 1, axis=0)
-    example_data_output = np.array([1, 1, -1, -1])
+    example_data_output = np.array([[1], [1], [-1], [-1]])
 
     dimensions = len(example_data_input[0])
     layer_one = [NeuronParams(dimensions, 1, 'linear', 0.1) for _ in range(1)]
@@ -197,21 +211,14 @@ def main():
     neurons_params = [layer_one, layer_two, layer_three]
 
     neural_network = NeuralNetwork(neurons_params, 10000)
-    min_error, iterations = neural_network.train(example_data_input, example_data_output)
+    min_error, iterations, best_weights_history, error_history = neural_network.train(example_data_input, example_data_output)
     neural_network.print_weights()
     print(f'Min error: {min_error} - Iterations: {iterations}')
 
 
-    result_1 = neural_network.predict(example_data_input[0])
-    result_2 = neural_network.predict(example_data_input[1])
-    result_3 = neural_network.predict(example_data_input[2])
-    result_4 = neural_network.predict(example_data_input[3])
-    # result_5 = tree.predict([1, 4, 3])
-    print(f'Result 1: {result_1} - expected: {example_data_output[0]}')
-    print(f'Result 2: {result_2} - expected: {example_data_output[1]}')
-    print(f'Result 3: {result_3} - expected: {example_data_output[2]}')
-    print(f'Result 4: {result_4} - expected: {example_data_output[3]}')
-    # print(f'Result 5: {result_5}')
+    for i, input_data in enumerate(example_data_input):
+        result = neural_network.predict(input_data)
+        print(f'Result {i}: {result} - expected: {example_data_output[i]}')
 
     fig, ax = plt.subplots()
     x = np.linspace(-2, 2, 100)
@@ -223,6 +230,30 @@ def main():
     cp = ax.contourf(X, Y, Z, levels=0,  cmap='coolwarm')
 
     ax.scatter(example_data_input[:, 0], example_data_input[:, 1], c=example_data_output, cmap='coolwarm')
+
+    fig, ax = plt.subplots()
+    line, = ax.plot([], [], lw=2)
+    
+    def init():
+        line.set_data([], [])
+        return line,
+
+    def update(frame):
+        index = frame % len(best_weights_history)
+        local_weights = best_weights_history[index]
+        neural_network.set_min_weights(local_weights)
+        x = np.linspace(-2, 2, 100)
+        y = np.linspace(-2, 2, 100)
+        X, Y = np.meshgrid(x, y)
+        Z = np.array([[neural_network.predict([x_val, y_val])[0] for x_val in x] for y_val in y])
+
+        cp = ax.contourf(X, Y, Z, levels=0,  cmap='coolwarm')
+        ax.set_title(f'{frame}/{len(best_weights_history)-1} - Error: {error_history[frame]}')
+        ax.scatter(example_data_input[:, 0], example_data_input[:, 1], c=example_data_output, cmap='coolwarm')
+
+        return line,
+
+    ani = animation.FuncAnimation(fig, update, frames=len(best_weights_history), init_func=init, blit=True, interval=10, repeat_delay=1000)
 
     plt.show()
 

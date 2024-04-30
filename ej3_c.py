@@ -3,7 +3,6 @@ import sys
 import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
-from multiprocessing import Pool
 
 class NeuronParams:
     def __init__(self, dimensions, learning_rate=0.1, activation_function='linear', beta=100):
@@ -48,7 +47,7 @@ class NeuralNetwork:
         iteration = 0
         best_weights_history = []
         error_history = []
-        while self.min_error > 10 and iteration < self.max_iter:
+        while self.min_error > 1e-3 and iteration < self.max_iter:
             mu = np.random.randint(0, len(data_input))
 
             results = []
@@ -57,7 +56,6 @@ class NeuralNetwork:
                 next_layer_input = layer.process(next_layer_input)
                 results.append(next_layer_input)
             
-            # print(f'Results: {results}')
             next_layer_deltas, next_layer_weights = self.layers[-1].train_last_layer(expected_output[mu], results[-2])
 
             for layer in list(reversed(self.layers))[1:]:
@@ -66,43 +64,19 @@ class NeuralNetwork:
                     training_input = data_input[mu]
                 next_layer_deltas, next_layer_weights = layer.train(training_input, next_layer_deltas, next_layer_weights)
 
-            error = sum((expected_output[mu] - self.process(data_input[mu]))**2 for mu in range(0, len(expected_output)))/2
-            error = sum(error)
-
-            # error = 0
-            # for i in range(len(data_input)):
-            #     result = self.process(data_input[i])[0]
-            #     result = 0 if result <= 0 else 1
-            #     expected = 0 if expected_output[i] == -1 else 1
-            #     # print(f'Expected: {expected} - Result: {result}')
-            #     error += binary_crossentropy(expected, result)
-
-            # error = 0
-            # for i in range(len(data_input)):
-            #     result = self.process(data_input[i])
-            #     expected = expected_output[i]
-            #     error += categorical_crossentropy(expected, result)
+            error = np.sum((expected_output - results[-1])**2)/2
 
             if error < self.min_error:
-                print(f'Iteration: {iteration} - Error: {error}')
                 error_history.append(error)
                 best_weights_history.append(self.get_weights())
                 self.min_error = error
                 for layer in self.layers:
                     layer.set_min_weights()
 
+            print(f'Iteration: {iteration} - Error: {error} - Min Error: {self.min_error}')
+
             iteration += 1
         return self.min_error, iteration, best_weights_history, error_history
-    
-def binary_crossentropy(expected_output, result):
-    epsilon = 1e-10
-    result = np.clip(result, epsilon, 1 - epsilon)
-    return -expected_output * np.log(result + epsilon) - (1 - expected_output) * np.log(1 - result + epsilon)
-
-def categorical_crossentropy(expected_output, result):
-    epsilon = 1e-10
-    result = np.clip(result, epsilon, 1 - epsilon)
-    return -np.sum(expected_output * np.log(result + epsilon))
 
 class Layer:
     def __init__(self, params: list, id):
@@ -115,13 +89,14 @@ class Layer:
             neuron.min_bias = neuron.bias
 
     def process(self, data_input, best=False):
-        return [neuron.predict(data_input, best) for neuron in self.neurons]
+        return np.array([neuron.predict(data_input, best) for neuron in self.neurons])
 
-    def train_last_layer(self, expected_output, value):
+    def train_last_layer(self, expected_output, last_layer_output):
         layer_deltas = []
         layer_weights = []
+
         for i, neuron in enumerate(self.neurons):
-            neuron_delta, neuron_weights = neuron.train_last_layer(expected_output[i], value)
+            neuron_delta, neuron_weights = neuron.train_last_layer(expected_output[i], last_layer_output)
             layer_deltas.append(neuron_delta)
             layer_weights.append(neuron_weights)
         
@@ -131,25 +106,12 @@ class Layer:
         layer_deltas = []
         layer_weights = []
 
-     
-        with Pool() as p:
-            results = p.map(train_neuron, [(i, neuron, data_input, next_layer_deltas, next_layer_weights) for i, neuron in enumerate(self.neurons)])
-
-        layer_deltas, layer_weights = zip(*results)
-
-        # for i, neuron in enumerate(self.neurons):
-        #     neuron_delta, neuron_weights = neuron.train(data_input, next_layer_deltas, next_layer_weights)
-        #     layer_deltas.append(neuron_delta)
-        #     layer_weights.append(neuron_weights)
+        for i, neuron in enumerate(self.neurons):
+            neuron_delta, neuron_weights = neuron.train(data_input, next_layer_deltas, next_layer_weights)
+            layer_deltas.append(neuron_delta)
+            layer_weights.append(neuron_weights)
         return layer_deltas, layer_weights
-
-
-def train_neuron(args):
-        i, neuron, data_input, next_layer_deltas, next_layer_weights = args
-        neuron_delta, neuron_weights = neuron.train(data_input, next_layer_deltas, next_layer_weights)
-        return neuron_delta, neuron_weights
         
-
 class Neuron:
     def __init__(self, params: NeuronParams, id, layer_id=None):
         self.weights = np.random.rand(params.dimensions)
@@ -165,19 +127,19 @@ class Neuron:
     activation_functions = {
         'linear': lambda x, b=0: x,
         'sigmoid': lambda x, b: 1 / (1 + np.exp(-2*b*x)),
-        'tan_h': lambda x, b: np.tanh(b*x)
+        'tan_h': lambda x, b: np.tanh(b*x),
     }
 
     derivative_activation_functions = {
         'linear': lambda x, b=0: 1,
         'sigmoid': lambda x, b: 2*b*np.exp(-2*b*x) / (1 + np.exp(-2*b*x))**2,
-        'tan_h': lambda x, b: b*(1 - np.tanh(b*x)**2)
+        'tan_h': lambda x, b: b*(1 - np.tanh(b*x)**2),
     }        
 
     def compute_excitement(self, data_input, best=False):
         weights = self.min_weights if best else self.weights
         bias = self.min_bias if best else self.bias
-        return sum(data_input * weights) + bias
+        return np.dot(data_input, weights) + bias
 
     def compute_activation(self, excitement):
         return self.activation_functions[self.activation_function](excitement, self.beta)
@@ -187,21 +149,19 @@ class Neuron:
     
     def calculate_delta_weights(self, data_input, next_layer_deltas, next_layer_weights):
         excitement = self.compute_excitement(data_input)
-        aux = sum(next_layer_deltas[i] * next_layer_weights[i][self.id] for i in range(len(next_layer_deltas)))
-        # print(f'Layer: {self.layer_id} - Neuron: {self.id} - Aux: {aux}')
+        next_layer_weights = np.array(next_layer_weights)
+        aux = np.sum(np.multiply(next_layer_deltas, next_layer_weights[:, self.id]))
         derivative = self.derivative_activation_functions[self.activation_function](excitement, self.beta)
         delta = aux * derivative
         return self.learning_rate * delta, delta
     
-    def train_last_layer(self, expected_output, value):
-        excitement = self.compute_excitement(value)
+    def train_last_layer(self, expected_output, last_layer_output):
+        excitement = self.compute_excitement(last_layer_output)
         activation = self.compute_activation(excitement)
         derivative = self.derivative_activation_functions[self.activation_function](excitement, self.beta)
         delta = (expected_output - activation) * derivative
 
-        delta_weights = []
-        for i in range(len(self.weights)):
-            delta_weights.append(self.learning_rate * delta * value[i])
+        delta_weights = np.multiply(self.learning_rate * delta, last_layer_output)
 
         self.weights = self.weights + delta_weights
         self.bias = self.bias + self.learning_rate * delta
@@ -222,7 +182,7 @@ def main():
     with open('TP3-ej3-digitos.txt', 'r') as f:
         lines = [line.split() for line in f]
     data = [list(map(int, [num for sublist in lines[i:i+7] for num in sublist])) for i in range(0, len(lines), 7)]
-
+    
     example_data_input = data
     # example_data_input = np.insert(example_data_input, 0, 1, axis=0)
     example_data_output = np.array([
@@ -238,16 +198,19 @@ def main():
         [0, 0, 0, 0, 0, 0, 0, 0, 0, 1]
     ])
 
+    # example_data_output = np.array([[i] for i in range(10)])
+
     dimensions = len(example_data_input[0])
-    layer_one = [NeuronParams(dimensions, 10, 'linear', 0.1) for _ in range(10)]
-    layer_two = [NeuronParams(len(layer_one), 10, 'linear', 0.2) for _ in range(10)]
-    layer_three = [NeuronParams(len(layer_two), 10, 'tan_h', 0.5) for _ in range(10)]
-    layer_four = [NeuronParams(len(layer_three), 10, 'sigmoid', 0.5) for _ in range(10)]
-    
+    layer_one = [NeuronParams(dimensions, 5, 'linear', 0.5) for _ in range(100)]
+    layer_two = [NeuronParams(len(layer_one),5,  'tan_h', 0.1) for _ in range(50)]
+    layer_three = [NeuronParams(len(layer_two), 50, 'sigmoid', 0.2) for _ in range(10)]
+    # layer_four = [NeuronParams(len(layer_three), 0.05, 'linear', 0.5) for _ in range(1)]
 
-    neurons_params = [layer_one, layer_two, layer_three, layer_four]
+    # layer_four = [NeuronParams(len(layer_three), 10, 'softmax', 0.05) for _ in range(10)]
 
-    neural_network = NeuralNetwork(neurons_params, 10000)
+    neurons_params = [layer_one, layer_two, layer_three]
+
+    neural_network = NeuralNetwork(neurons_params, 300)
     min_error, iterations, best_weights_history, error_history = neural_network.train(example_data_input, example_data_output)
     # neural_network.print_weights()
     print(f'Min error: {min_error} - Iterations: {iterations}')
@@ -258,28 +221,6 @@ def main():
         result = [round(res, 2) for res in result]
         print(f'Result {i}: {result} - expected: {example_data_output[i]}')
 
-    # results = [[1.0, 1.0, 0.99, 0.99, 1.0, 1.0, 1.0, 1.0, 0.99, 1.0] for _ in range(10)]
-    # expected_outputs = [[int(i == j) for i in range(10)] for j in range(10)]
-    # # results = expected_outputs
-
-    # total_error = 0
-    # for result, expected_output in zip(results, expected_outputs):
-    #     total_error += categorical_crossentropy(expected_output, result)
-
-    # print(total_error)
-
-    # fig, ax = plt.subplots()
-    # x = np.linspace(-2, 2, 100)
-    # y = np.linspace(-2, 2, 100)
-    # X, Y = np.meshgrid(x, y)
-
-    # Z = np.array([[neural_network.predict([x_val, y_val])[0] for x_val in x] for y_val in y])
-    
-    # cp = ax.contourf(X, Y, Z, levels=0,  cmap='coolwarm')
-
-    # ax.scatter(example_data_input[:, 0], example_data_input[:, 1], c=example_data_output, cmap='coolwarm')
-
-    # plt.show()
 
 if __name__ == "__main__":
     main()

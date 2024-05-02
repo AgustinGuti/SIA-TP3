@@ -4,6 +4,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 import noise
+import json
 
 activation_functions = {
     'linear': lambda x, b=0: x,
@@ -38,6 +39,18 @@ class NeuralNetwork:
             results.append(next_layer_input)
         return results[-1]
     
+    def dump_weights_to_file(self, filename):
+        weights = [layer.weights.tolist() for layer in self.layers]
+        with open(filename, 'w') as f:
+            json.dump(weights, f)
+
+    def load_weights_from_file(self, filename):
+        with open(filename, 'r') as f:
+            weights = json.load(f)
+        for i, layer in enumerate(self.layers):
+            layer.weights = np.array(weights[i])
+            layer.set_min_weights()
+    
     def process(self, data_input):
         return self.predict(data_input, False)
 
@@ -51,8 +64,7 @@ class NeuralNetwork:
     def print_weights(self):
         for layer in self.layers:
             print(f'Layer: {layer.id}')
-            for neuron in layer.neurons:
-                print(f'Neuron: {neuron.id} - Weights: {neuron.weights} - Bias: {neuron.bias}')
+            print(f'Weights: {layer.weights}')
 
     def train(self, data_input, expected_output):
         iteration = 0
@@ -215,21 +227,6 @@ def main():
         [0, 0, 0, 0, 0, 0, 0, 0, 0, 1]
     ])
 
-    # example_data_output = np.array([
-    #     [ 1, -1, -1, -1, 1, -1, -1, -1, -1, -1], 
-    #     [-1,  1, -1, -1, -1, 1, -1, -1, -1, -1], 
-    #     [-1, -1, 1, -1, -1, -1, -1, -1, -1, -1], 
-    #     [-1, -1, -1, 1, -1, -1, -1, -1, -1, -1],
-    #     [ 1, -1, -1, -1, 1, -1, -1, -1, -1, -1], 
-    #     [-1,  1, -1, -1, -1, 1, -1, -1, -1, -1],
-    #     [-1, -1, -1, -1, -1, -1, 1, -1, -1, -1], 
-    #     [-1, -1, -1, -1, -1, -1, -1, 1, -1, -1],
-    #     [-1, -1, -1, -1, -1, -1, -1, -1, 1, -1], 
-    #     [-1, -1, -1, -1, -1, -1, -1, -1, -1, 1]
-    # ])
-
-
-
     # example_data_output = np.array([[i] for i in range(10)])
     # example_data_input = np.array([[-1, 1], [1, -1], [-1, -1], [1, 1]])
     # example_data_output = np.array([[1], [1], [-1], [-1]])
@@ -237,7 +234,7 @@ def main():
     dimensions = len(example_data_input[0])
     layer_one = [NeuronParams(dimensions, 0.1, 'linear', 0.2) for _ in range(150)]
     layer_two = [NeuronParams(len(layer_one), 0.1,  'tan_h', 0.2) for _ in range(75)]
-    layer_three = [NeuronParams(len(layer_two), 0.1, 'tan_h', 100) for _ in range(10)]
+    layer_three = [NeuronParams(len(layer_two), 0.1, 'sigmoid', 100) for _ in range(10)]
     
 
     neurons_params = [layer_one, layer_two, layer_three]
@@ -245,8 +242,11 @@ def main():
     neural_network = NeuralNetwork(neurons_params, 5000)
 
     min_error, iterations, best_weights_history, error_history = neural_network.train(example_data_input, example_data_output)
-    # neural_network.print_weights()
     print(f'Min error: {min_error} - Iterations: {iterations}')
+    neural_network.dump_weights_to_file('results/weights.json')
+
+    neural_network.load_weights_from_file('results/weights.json')
+    # neural_network.print_weights()
 
     results = []
     for i, input_data in enumerate(example_data_input):
@@ -349,33 +349,6 @@ def main():
     #     axs[i].bar(np.arange(len(expected)), expected, alpha=0.7, label='Expected')
     #     axs[i].set_title(f'Input {i+1}')
     #     axs[i].legend()
-
-    # plt.tight_layout()
-
-#     fig2, axs2 = plt.subplots(len(results), figsize=(10, 30))
-
-#     for i, (result, expected) in enumerate(zip(results, example_data_output)):
-#         axs2[i].bar(np.arange(len(result)), 0, alpha=0.7, label='Result')
-#         axs2[i].bar(np.arange(len(expected)), expected, alpha=0.7, label='Expected')
-#         axs2[i].set_title(f'Input {i+1}')
-#         axs2[i].legend()
-
-#     def update(frame):
-#         # Get the result and expected result for this frame
-#         neural_network.set_min_weights(best_weights_history[frame])
-#         results = neural_network.predict(example_data_input)
-
-#         # Update the heights of the bars
-#         for i in range(len(results)):
-#             bars = axs2[i].bar(np.arange(len(results[i])), results[i], alpha=0.7, label='Result')
-#             # axs2[i].bar(np.arange(len(example_data_output[i])), example_data_output[i], alpha=0.7, label='Expected')
-
-#         fig2.suptitle(f'Iteration {frame} - Error: {error_history[frame]}')
-
-#         return bars
-
-#     # Create the animation
-#     ani = animation.FuncAnimation(fig2, update, frames=len(results), blit=True)
 
     plt.show()
 

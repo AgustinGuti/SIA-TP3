@@ -24,7 +24,6 @@ def main():
     data = [list(map(int, [num for sublist in lines[i:i+7] for num in sublist])) for i in range(0, len(lines), 7)]
 
     example_data_input = data
-
     # example_data_input = np.insert(example_data_input, 0, 1, axis=0)
     example_data_output = np.array([
         [1, 0, 0, 0, 0, 0, 0, 0, 0, 0], 
@@ -53,9 +52,9 @@ def main():
 
     neural_network = NeuralNetwork(neurons_params, 20000)
 
-    # min_error, iterations, best_weights_history, error_history = neural_network.train(example_data_input, example_data_output)
-    # print(f'Min error: {min_error} - Iterations: {iterations}')
-    # neural_network.dump_weights_to_file('results/weights.json')
+    min_error, iterations, best_weights_history, error_history = neural_network.train(example_data_input, example_data_output)
+    print(f'Min error: {min_error} - Iterations: {iterations}')
+    neural_network.dump_weights_to_file('results/weights.json')
 
     neural_network.load_weights_from_file('results/weights.json')
     # neural_network.print_weights()
@@ -76,7 +75,7 @@ def main():
 
     accuracies = []
 
-    intensities = range(1, 50)
+    intensities = range(0, 50)
     intensities = [i/100 for i in intensities]
 
     for intensity in intensities:

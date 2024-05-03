@@ -15,11 +15,12 @@ derivative_activation_functions = {
 }    
 
 class NeuronParams:
-    def __init__(self, dimensions, learning_rate=0.1, activation_function='linear', beta=100):
+    def __init__(self, dimensions, learning_rate=0.1, activation_function='linear', beta=100, optimizer=''):
         self.dimensions = dimensions
         self.learning_rate = learning_rate
         self.activation_function = activation_function
         self.beta = beta
+        self.optimizer = optimizer
    
 class NeuralNetwork:
     def __init__(self, params: list, max_iter=1000):
@@ -118,7 +119,7 @@ class Layer:
         self.momentum_params = MomentumParams()
         self.rms_prop_params = RMSPropParams()
         self.adam_params = AdamParams()
-        self.optimizer = ''
+        self.optimizer = params[0].optimizer
         
     def set_min_weights(self, weights=None):
         if weights is not None:

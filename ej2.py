@@ -44,6 +44,7 @@ class Perceptron:
         excitement = self.compute_excitement(value)
         activation = self.compute_activation(excitement)
         derivative = self.derivative_activation_functions[self.activation_function](excitement, self.beta)
+
         return self.learning_rate * (expected_output - activation) * derivative
 
 
@@ -89,7 +90,7 @@ def main():
     example_data_input = data[[col for col in data.columns if col.startswith('x')]].values    
     example_data_output = data['y'].values
 
-    scaler = MinMaxScaler(feature_range=(0, 1))
+    scaler = MinMaxScaler(feature_range=(-1, 1))
 
     example_data_output = scaler.fit_transform(example_data_output.reshape(-1, 1))
     example_data_output = example_data_output.ravel()
@@ -103,8 +104,33 @@ def main():
     test_data = example_data_input[cutoff:]
     test_output = example_data_output[cutoff:]
 
-    perceptron = Perceptron(10000, len(training_data[0]), 0.01, activation_function='sigmoid', beta=10)
+    min_errors = []
+    test_errors = []
 
+    # for i in range(20):
+    #     min_error_acum = 0
+    #     test_error_acum = 0
+    #     for _ in range(2):
+    #         perceptron = Perceptron(5000, len(training_data[0]), 0.01, activation_function='tan_h', beta=i/10)
+
+    #         weights, bias, min_error, weight_history, error_history, bias_history = perceptron.train(training_data, training_output)
+
+    #         predictions = perceptron.predict(test_data)
+    #         test_error = calculate_error(predictions, test_output)
+
+    #         min_error_acum += min_error
+    #         test_error_acum += test_error
+
+    #     min_errors.append(min_error_acum/10)
+    #     test_errors.append(test_error_acum/10)
+
+    # plt.plot(range(20), min_errors, label='Training Error')
+    # plt.plot(range(20), test_errors, label='Test Error')
+    # plt.ylim(0, 1)
+    # plt.yticks(np.arange(0, 1.1, 0.1))
+    # plt.legend()
+
+    perceptron = Perceptron(5000, len(training_data[0]), 0.01, activation_function='tan_h', beta=0.3)
     weights, bias, min_error, weight_history, error_history, bias_history = perceptron.train(training_data, training_output)
     print("Weights: ", weights, "Bias: ", bias)
 
@@ -112,6 +138,7 @@ def main():
     test_error = calculate_error(predictions, test_output)
 
     print("Test error: ", test_error)
+
 
     # df = pd.DataFrame(example_data_input, columns=[col for col in data.columns if col.startswith('x')])
     # df['output'] = example_data_output
@@ -145,7 +172,6 @@ def main():
     # ax2.plot_surface(x_values, y_values, z_values, alpha=0.5, rstride=100, cstride=100, label='Regression Plane')
 
     # plt.legend(['Training Data', 'Test Data'])
-    # plt.title(f"Training Error: {min_error:.2f} - Test Error: {test_error:.2f}")
 
     # plt.show()
 

@@ -1,6 +1,7 @@
 import numpy as np
 import sys
 import json
+import copy
 
 activation_functions = {
     'linear': lambda x, b=0: x,
@@ -58,11 +59,14 @@ class NeuralNetwork:
         return self.predict(data_input, False)
 
     def get_weights(self):
-        return [layer.weights for layer in self.layers]
+        return [copy.deepcopy(layer.weights) for layer in self.layers]
     
-    def set_min_weights(self, weights):
+    def get_biases(self):
+        return [copy.deepcopy(layer.biases) for layer in self.layers]
+    
+    def set_min_weights(self, weights, biases=None):
         for i, layer in enumerate(self.layers):
-            layer.set_min_weights(weights[i])
+            layer.set_min_weights(weights[i], biases[i] if biases is not None else None)
 
     def print_weights(self):
         for layer in self.layers:
@@ -72,6 +76,7 @@ class NeuralNetwork:
     def train(self, data_input, expected_output):
         iteration = 0
         best_weights_history = []
+        best_biases_history = []
         error_history = []
         while self.min_error > 1e-5 and iteration < self.max_iter:
             mu = np.random.randint(0, len(data_input))
@@ -92,19 +97,21 @@ class NeuralNetwork:
                 
             error = sum(sum((expected_output[mu] - self.process(data_input[mu]))**2 for mu in range(0, len(expected_output)))/len(expected_output))
 
+            error_history.append(error)
+            best_weights_history.append(self.get_weights())
+            best_biases_history.append(self.get_biases())
+
             improved = ''
             if error < self.min_error:
-                error_history.append(error)
-                best_weights_history.append(self.get_weights())
                 self.min_error = error
                 for layer in self.layers:
                     layer.set_min_weights()
                 improved = '- True'
 
-            print(f'Iteration: {iteration} - Error: {error} - Min Error: {self.min_error} {improved}')
+            # print(f'Iteration: {iteration} - Error: {error} - Min Error: {self.min_error} {improved}')
 
             iteration += 1
-        return self.min_error, iteration, best_weights_history, error_history
+        return self.min_error, iteration, best_weights_history, best_biases_history, error_history
 
 class Layer:
     def __init__(self, params: list[NeuronParams], id):
@@ -112,8 +119,8 @@ class Layer:
         self.weights = np.array([np.random.rand(params[0].dimensions) for _ in range(len(params))])
         self.biases = [np.random.rand() for _ in range(len(params))]
         self.learning_rate = params[0].learning_rate
-        self.min_weights = None
-        self.min_biases = None
+        self.min_weights = self.weights
+        self.min_biases = self.biases
         self.activation_function = params[0].activation_function
         self.beta = params[0].beta
         self.momentum_params = MomentumParams()
@@ -121,9 +128,12 @@ class Layer:
         self.adam_params = AdamParams()
         self.optimizer = params[0].optimizer
         
-    def set_min_weights(self, weights=None):
+    def set_min_weights(self, weights=None, biases=None):
         if weights is not None:
             self.weights = weights
+        if biases is not None:
+            self.biases = biases
+
         self.min_weights = self.weights
         self.min_biases = self.biases
 
@@ -140,8 +150,7 @@ class Layer:
 
     def train(self, training_input, gradient, iteration):
         new_gradient = np.dot(self.weights.T, gradient)
-        # print(new_gradient)
-        # new_gradient = new_gradient * derivative_activation_functions[self.activation_function](self.compute_exitement(training_input), self.beta)
+
 
         if self.optimizer == 'momentum':
             change  = self.momentum_params.get_m(iteration, gradient)

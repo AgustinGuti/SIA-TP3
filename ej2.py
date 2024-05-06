@@ -94,7 +94,7 @@ def main():
     example_data_output = scaler.fit_transform(example_data_output.reshape(-1, 1))
     example_data_output = example_data_output.ravel()
 
-    training_percentage = 0.5
+    training_percentage = 0.7
     cutoff = int(len(example_data_input) * training_percentage)
 
     training_data = example_data_input[:cutoff]
@@ -129,7 +129,11 @@ def main():
     # plt.yticks(np.arange(0, 1.1, 0.1))
     # plt.legend()
 
-    perceptron = Perceptron(len(training_data[0]), 0.1, activation_function='tan_h', beta=0.3)
+    activation_function = 'tan_h'
+    beta = 0.3
+    learning_rate = 0.1
+
+    perceptron = Perceptron(len(training_data[0]), learning_rate, activation_function=activation_function, beta=beta)
     # weights, bias, min_error, weight_history, error_history, bias_history = perceptron.train(training_data, training_output)
     # print("Weights: ", weights, "Bias: ", bias)
 
@@ -138,7 +142,83 @@ def main():
 
     # print("Test error: ", test_error)
 
+    k = 7 
+    fold_size = int(len(training_data) / k)
+    start = 0
+    end = fold_size
+ 
+    for j in range(k):
+        perceptron = Perceptron(len(training_data[0]), learning_rate, activation_function=activation_function, beta=beta)
+        test_data = training_data[start:end]
+        test_output = training_output[start:end]
+        training_data_fold = np.concatenate((training_data[:start], training_data[end:]))
+        training_output_fold = np.concatenate((training_output[:start], training_output[end:]))
 
+        test_errors = []
+        train_errors = []
+      
+        for _ in range(150):
+            weights, bias, min_error, weight_history, error_history, bias_history = perceptron.train(training_data_fold, training_output_fold, 1)
+            train_errors.append(min_error)
+            predictions = perceptron.predict(test_data)
+            test_error = calculate_error(predictions, test_output)
+            test_errors.append(test_error)
+
+
+        # plt.figure()
+    
+        # plt.plot(range(len(train_errors)), train_errors, label='Training Error')
+        # plt.plot(range(len(test_errors)), test_errors, label='Test Error')
+        # plt.legend()
+        # plt.xlabel('Epochs')
+        # plt.ylabel('Error')
+        # plt.title(f'Error vs Epochs Fold {j + 1}')
+        # plt.savefig(f'results/Error_vs_Epochs_Fold_{j + 1}.png')
+    
+        start = end
+        end += fold_size
+
+    training_percentage = 0.7
+    cutoff = int(len(example_data_input) * training_percentage)
+    
+    # Define your lower and upper percentiles
+    lower_percentile = 25
+    upper_percentile = 75
+
+    # Convert your data to numpy arrays for easier manipulation
+    training_data = example_data_input[:cutoff]
+    training_output = example_data_output[:cutoff]
+
+    print(training_data)
+
+    # Calculate the IQR of the training data
+    Q1 = np.percentile(training_data, lower_percentile)
+    Q3 = np.percentile(training_data, upper_percentile)
+    IQR = Q3 - Q1
+
+    # Define the outlier step
+    outlier_step = 1.5 * IQR
+
+    # Determine a list of indices of outliers for feature
+    outlier_indices = np.where((training_data < Q1 - outlier_step) | (training_data > Q3 + outlier_step))
+    outlier_indices = np.array(outlier_indices).flatten()
+
+    # Separate the outliers
+    training_data_outliers = training_data[outlier_indices]
+    print('outlier indices: '   , outlier_indices)
+    training_output_outliers = training_output[outlier_indices]
+
+    # Remove the outliers from the original training data
+    np.delete(training_data, outlier_indices)
+    print('training data: ', training_data)
+    print(f'Outliers: {training_data_outliers}')
+    np.delete(training_output, outlier_indices)
+
+    # Add the outliers to the test data
+    test_data = np.concatenate((example_data_input[cutoff:], training_data_outliers))
+    test_output = np.concatenate((example_data_output[cutoff:], training_output_outliers))
+    print('training data: ', training_data)
+    perceptron = Perceptron(len(training_data[0]), learning_rate, activation_function=activation_function, beta=beta)
 
     test_errors = []
     train_errors = []
@@ -148,7 +228,7 @@ def main():
         predictions = perceptron.predict(test_data)
         test_error = calculate_error(predictions, test_output)
         test_errors.append(test_error)
-
+    
 
     plt.figure()
     

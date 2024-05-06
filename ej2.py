@@ -131,7 +131,7 @@ def main():
 
     activation_function = 'tan_h'
     beta = 0.3
-    learning_rate = 0.1
+    learning_rate = 0.001
 
     perceptron = Perceptron(len(training_data[0]), learning_rate, activation_function=activation_function, beta=beta)
     # weights, bias, min_error, weight_history, error_history, bias_history = perceptron.train(training_data, training_output)
@@ -147,6 +147,8 @@ def main():
     start = 0
     end = fold_size
  
+    fold_errors_fold = []
+    fold_errors_fold = []
     for j in range(k):
         perceptron = Perceptron(len(training_data[0]), learning_rate, activation_function=activation_function, beta=beta)
         test_data = training_data[start:end]
@@ -159,118 +161,106 @@ def main():
       
         for _ in range(150):
             weights, bias, min_error, weight_history, error_history, bias_history = perceptron.train(training_data_fold, training_output_fold, 1)
-            train_errors.append(min_error)
             predictions = perceptron.predict(test_data)
             test_error = calculate_error(predictions, test_output)
             test_errors.append(test_error)
+            train_errors.append(min_error)
+
+        fold_errors_fold.append(test_errors[len(test_errors) - 1])
+        fold_errors_fold.append(train_errors[len(train_errors) - 1])
 
 
-        # plt.figure()
+        plt.figure()
     
-        # plt.plot(range(len(train_errors)), train_errors, label='Training Error')
-        # plt.plot(range(len(test_errors)), test_errors, label='Test Error')
-        # plt.legend()
-        # plt.xlabel('Epochs')
-        # plt.ylabel('Error')
-        # plt.title(f'Error vs Epochs Fold {j + 1}')
-        # plt.savefig(f'results/Error_vs_Epochs_Fold_{j + 1}.png')
+        plt.plot(range(len(train_errors)), train_errors, label='Training Error')
+        plt.plot(range(len(test_errors)), test_errors, label='Test Error')
+        plt.legend()
+        plt.xlabel('Epochs')
+        plt.ylabel('Error')
+        plt.title(f'Error vs Epochs Fold {j + 1}')
+        plt.savefig(f'results/Error_vs_Epochs_Fold_{j + 1}.png')
     
         start = end
         end += fold_size
 
-    training_percentage = 0.7
-    cutoff = int(len(example_data_input) * training_percentage)
+    plt.figure()
+    plt.errorbar(range(1, 8), [np.mean(errors) for errors in fold_errors_fold[1::2]], yerr=[np.std(errors) for errors in fold_errors_fold[1::2]], fmt='o-', label='Training Error')
+    plt.errorbar(range(1, 8), [np.mean(errors) for errors in fold_errors_fold[0::2]], yerr=[np.std(errors) for errors in fold_errors_fold[0::2]], fmt='o-', label='Test Error')
+    plt.xlabel('Fold')
+    plt.ylabel('Error')
+    plt.title('Error vs Fold')
+    plt.legend()
+    plt.savefig('results/Error_vs_Fold.png')
+
+    training_percentaje_errors = []
+    test_percentage_errors = []
+    for training_percentage in [i/10 for i in range(1, 10)]:
+        cutoff = int(len(example_data_input) * training_percentage)
+        
+        # Define your lower and upper percentiles
+        lower_percentile = 5
+        upper_percentile = 100 - lower_percentile
+
+        # Convert your data to numpy arrays for easier manipulation
+        training_data = example_data_input[:cutoff]
+        training_output = example_data_output[:cutoff]
+
+        # Calculate the IQR of the training data
+        Q1 = np.percentile(training_output, lower_percentile)
+        Q3 = np.percentile(training_output, upper_percentile)
+        IQR = Q3 - Q1
+
+        # Define the outlier step
+        outlier_step = 1.5 * IQR
+
+        # Determine a list of indices of outliers for feature
+        outlier_indices = np.where((training_output < Q1 - outlier_step) | (training_output > Q3 + outlier_step))
+        outlier_indices = np.array(outlier_indices).flatten()
+
+        # Separate the outliers
+        training_data_outliers = training_data[outlier_indices]
+        training_output_outliers = training_output[outlier_indices]
+
+        # Remove the outliers from the original training data
+        np.delete(training_data, outlier_indices)
+        np.delete(training_output, outlier_indices)
+
+        # Add the outliers to the test data
+        test_data = np.concatenate((example_data_input[cutoff:], training_data_outliers))
+        test_output = np.concatenate((example_data_output[cutoff:], training_output_outliers))
+        perceptron = Perceptron(len(training_data[0]), learning_rate, activation_function=activation_function, beta=beta)
+
+        test_errors = []
+        train_errors = []
+        for _ in range(150):
+            weights, bias, min_error, weight_history, error_history, bias_history = perceptron.train(training_data, training_output, 1)
+            train_errors.append(min_error)
+            predictions = perceptron.predict(test_data)
+            test_error = calculate_error(predictions, test_output)
+            test_errors.append(test_error)
     
-    # Define your lower and upper percentiles
-    lower_percentile = 25
-    upper_percentile = 75
-
-    # Convert your data to numpy arrays for easier manipulation
-    training_data = example_data_input[:cutoff]
-    training_output = example_data_output[:cutoff]
-
-    # Calculate the IQR of the training data
-    Q1 = np.percentile(training_data, lower_percentile)
-    Q3 = np.percentile(training_data, upper_percentile)
-    IQR = Q3 - Q1
-
-    # Define the outlier step
-    outlier_step = 1.5 * IQR
-
-    # Determine a list of indices of outliers for feature
-    outlier_indices = np.where((training_data < Q1 - outlier_step) | (training_data > Q3 + outlier_step))
-    outlier_indices = np.array(outlier_indices).flatten()
-
-    # Separate the outliers
-    training_data_outliers = training_data[outlier_indices]
-    training_output_outliers = training_output[outlier_indices]
-
-    # Remove the outliers from the original training data
-    np.delete(training_data, outlier_indices)
-    np.delete(training_output, outlier_indices)
-
-    # Add the outliers to the test data
-    test_data = np.concatenate((example_data_input[cutoff:], training_data_outliers))
-    test_output = np.concatenate((example_data_output[cutoff:], training_output_outliers))
-    perceptron = Perceptron(len(training_data[0]), learning_rate, activation_function=activation_function, beta=beta)
-
-    test_errors = []
-    train_errors = []
-    for _ in range(150):
-        weights, bias, min_error, weight_history, error_history, bias_history = perceptron.train(training_data, training_output, 1)
-        train_errors.append(min_error)
-        predictions = perceptron.predict(test_data)
-        test_error = calculate_error(predictions, test_output)
-        test_errors.append(test_error)
+        training_percentaje_errors.append(train_errors[len(train_errors) - 1])
+        test_percentage_errors.append(test_errors[len(test_errors) - 1])
+    # plt.figure()
     
+    # plt.plot(range(len(train_errors)), train_errors, label='Training Error')
+    # plt.plot(range(len(test_errors)), test_errors, label='Test Error')
+    # plt.legend()
+    # plt.xlabel('Epochs')
+    # plt.ylabel('Error')
+    # plt.title(f'Error vs Epochs - Training Percentage {training_percentage}')
 
     plt.figure()
-    
-    plt.plot(range(len(train_errors)), train_errors, label='Training Error')
-    plt.plot(range(len(test_errors)), test_errors, label='Test Error')
-    plt.legend()
-    plt.xlabel('Epochs')
+    plt.errorbar([i/10 for i in range(1, 10)], training_percentaje_errors, fmt='o-', label='Training Error')
+    plt.errorbar([i/10 for i in range(1, 10)], test_percentage_errors, fmt='o-', label='Test Error')
+    plt.xlabel('Training Percentage')
     plt.ylabel('Error')
-    plt.title('Error vs Epochs')
+    plt.title('Error vs Training Percentage')
+    plt.legend()
+    plt.savefig('results/Error_vs_Training_Percentage.png')
+
+
     plt.show()
-
-
-
-
-    # df = pd.DataFrame(example_data_input, columns=[col for col in data.columns if col.startswith('x')])
-    # df['output'] = example_data_output
-
-    # X = df[[col for col in df.columns if col.startswith('x')]].values
-    # y = df['output'].values
-
-    # x_range = np.linspace(X[:, 0].min(), X[:, 0].max(), num=10)
-    # y_range = np.linspace(X[:, 1].min(), X[:, 1].max(), num=10)
-
-    # regressor = LinearRegression()
-    # regressor.fit(X, y)
-    # print('Weights: ', regressor.coef_)
-    # print('Bias: ', regressor.intercept_)
-
-    # fig2 = plt.figure()
-    # ax2 = fig2.add_subplot(111, projection='3d')
-    # ax2.scatter(X[:cutoff, 0], X[:cutoff, 1], y[:cutoff], color='green', label='Training Data')
-    # ax2.scatter(X[cutoff:, 0], X[cutoff:, 1], y[cutoff:], color='red', label='Test Data')
-
-    # x_values, y_values = np.meshgrid(x_range, y_range)
-
-    # xy_matrix = np.c_[x_values.ravel(), y_values.ravel()]
-
-    # # Predict the z values for each (x, y) pair
-    # z_values = perceptron.predict(xy_matrix)
-
-    # # Reshape the z_values array to match the shape of the x_values and y_values arrays
-    # z_values = np.array(z_values).reshape(x_values.shape)
-
-    # ax2.plot_surface(x_values, y_values, z_values, alpha=0.5, rstride=100, cstride=100, label='Regression Plane')
-
-    # plt.legend(['Training Data', 'Test Data'])
-
-    # plt.show()
 
 if __name__ == "__main__":
     main()

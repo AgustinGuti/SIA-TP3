@@ -189,8 +189,6 @@ def main():
     training_data = example_data_input[:cutoff]
     training_output = example_data_output[:cutoff]
 
-    print(training_data)
-
     # Calculate the IQR of the training data
     Q1 = np.percentile(training_data, lower_percentile)
     Q3 = np.percentile(training_data, upper_percentile)
@@ -205,19 +203,15 @@ def main():
 
     # Separate the outliers
     training_data_outliers = training_data[outlier_indices]
-    print('outlier indices: '   , outlier_indices)
     training_output_outliers = training_output[outlier_indices]
 
     # Remove the outliers from the original training data
     np.delete(training_data, outlier_indices)
-    print('training data: ', training_data)
-    print(f'Outliers: {training_data_outliers}')
     np.delete(training_output, outlier_indices)
 
     # Add the outliers to the test data
     test_data = np.concatenate((example_data_input[cutoff:], training_data_outliers))
     test_output = np.concatenate((example_data_output[cutoff:], training_output_outliers))
-    print('training data: ', training_data)
     perceptron = Perceptron(len(training_data[0]), learning_rate, activation_function=activation_function, beta=beta)
 
     test_errors = []

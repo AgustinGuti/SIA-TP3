@@ -7,12 +7,11 @@ from sklearn.linear_model import LinearRegression
 from sklearn.preprocessing import MinMaxScaler
 
 class Perceptron:
-    def __init__(self, max_iter, dimensions, learning_rate=0.1, activation_function='linear', beta=100):
+    def __init__(self, dimensions, learning_rate=0.1, activation_function='linear', beta=100):
         self.weights = np.random.rand(dimensions)
         self.bias = np.random.rand()
         self.error = None
         self.min_error = sys.maxsize
-        self.max_iter = max_iter
         self.min_weights = None
         self.min_bias = None
         self.learning_rate = learning_rate
@@ -49,7 +48,7 @@ class Perceptron:
 
 
 
-    def train(self, data_input, expected_output):
+    def train(self, data_input, expected_output, max_epochs=1000):
         i = 0
         weight_history = []
         error_history = []
@@ -57,7 +56,7 @@ class Perceptron:
         weight_history.append(self.weights)
         error_history.append(self.min_error)
         bias_history.append(self.bias)
-        while self.min_error > 0.1 and i < self.max_iter:
+        while self.min_error > 0.1 and i < max_epochs:
             mu = np.random.randint(0, len(data_input))
             value = data_input[mu]
            
@@ -77,8 +76,8 @@ class Perceptron:
                 self.min_bias = self.bias
             i += 1
 
-        print("Iterations: ", i)
-        print("Error:", self.min_error)
+        # print("Iterations: ", i)
+        # print("Error:", self.min_error)
         return self.min_weights, self.min_bias, self.min_error, weight_history, error_history, bias_history
 
 def calculate_error(data, expected_output):
@@ -95,7 +94,7 @@ def main():
     example_data_output = scaler.fit_transform(example_data_output.reshape(-1, 1))
     example_data_output = example_data_output.ravel()
 
-    training_percentage = 0.8
+    training_percentage = 0.5
     cutoff = int(len(example_data_input) * training_percentage)
 
     training_data = example_data_input[:cutoff]
@@ -130,14 +129,38 @@ def main():
     # plt.yticks(np.arange(0, 1.1, 0.1))
     # plt.legend()
 
-    perceptron = Perceptron(5000, len(training_data[0]), 0.01, activation_function='tan_h', beta=0.3)
-    weights, bias, min_error, weight_history, error_history, bias_history = perceptron.train(training_data, training_output)
-    print("Weights: ", weights, "Bias: ", bias)
+    perceptron = Perceptron(len(training_data[0]), 0.1, activation_function='tan_h', beta=0.3)
+    # weights, bias, min_error, weight_history, error_history, bias_history = perceptron.train(training_data, training_output)
+    # print("Weights: ", weights, "Bias: ", bias)
 
-    predictions = perceptron.predict(test_data)
-    test_error = calculate_error(predictions, test_output)
+    # predictions = perceptron.predict(test_data)
+    # test_error = calculate_error(predictions, test_output)
 
-    print("Test error: ", test_error)
+    # print("Test error: ", test_error)
+
+
+
+    test_errors = []
+    train_errors = []
+    for _ in range(150):
+        weights, bias, min_error, weight_history, error_history, bias_history = perceptron.train(training_data, training_output, 1)
+        train_errors.append(min_error)
+        predictions = perceptron.predict(test_data)
+        test_error = calculate_error(predictions, test_output)
+        test_errors.append(test_error)
+
+
+    plt.figure()
+    
+    plt.plot(range(len(train_errors)), train_errors, label='Training Error')
+    plt.plot(range(len(test_errors)), test_errors, label='Test Error')
+    plt.legend()
+    plt.xlabel('Epochs')
+    plt.ylabel('Error')
+    plt.title('Error vs Epochs')
+    plt.show()
+
+
 
 
     # df = pd.DataFrame(example_data_input, columns=[col for col in data.columns if col.startswith('x')])

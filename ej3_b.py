@@ -10,7 +10,7 @@ def main():
         
     all_output_data = np.array([[i%2] for i in range(10)])
 
-    cutoff_percentage = 0.8
+    cutoff_percentage = 0.80
     cutoff = int(len(data) * cutoff_percentage)
 
     input_data = data[:cutoff]
@@ -20,16 +20,12 @@ def main():
     expected_output = all_output_data[cutoff:]
 
     dimensions = len(input_data[0])
-    layer_one = [NeuronParams(dimensions, 0.01, 'linear', 0.2, optimizer='adam') for _ in range(100)]
-    layer_two = [NeuronParams(len(layer_one), 0.01,  'linear', 0.5, optimizer='adam') for _ in range(50)]
-    layer_three = [NeuronParams(len(layer_two), 0.01, 'sigmoid', 100, optimizer='adam') for _ in range(1)]
+    layer_one = [NeuronParams(dimensions, 0.01, 'linear', 0.2, optimizer='') for _ in range(100)]
+    layer_two = [NeuronParams(len(layer_one), 0.01,  'linear', 0.5, optimizer='') for _ in range(50)]
+    layer_three = [NeuronParams(len(layer_two), 0.01, 'sigmoid', 100, optimizer='') for _ in range(1)]
     
 
     neurons_params = [layer_one, layer_two, layer_three]
-
-
-    cutoff_correct = []
-    training_cutoff_correct = []
 
     train_errors = []
     test_errors = []
@@ -52,11 +48,62 @@ def main():
 
     plt.plot(range(len(train_errors)), train_errors, label='Training Error')
     plt.plot(range(len(test_errors)), test_errors, label='Test Error')
+  
+    # Plot the average test error as a horizontal line
+    avg_test_error = np.mean(test_errors)
+    plt.axhline(avg_test_error, color='r', linestyle=':', label='Average Test Error')
+
     plt.legend()
     plt.xlabel('Epochs')
     plt.ylabel('Error')
     plt.title(f'Error over Epochs')
     plt.savefig(f'results/train_error_3b.png')
+
+    avg_test_errors_list = []
+    for _ in range(10):
+        avg_test_errors = []
+
+        for cutoff in range(1, 10):
+            cutoff_percentage = cutoff/10
+            cutoff = int(len(data) * cutoff_percentage)
+            input_data = data[:cutoff]
+            output_data = all_output_data[:cutoff]     
+
+            test_errors = []
+            iters_without_error = 0
+            neural_network = NeuralNetwork(neurons_params)
+            for _ in range(1000):
+                min_error, iterations, best_weights, best_biases, error = neural_network.train(input_data, output_data, 1)
+                if min_error <= 1e-5:
+                    iters_without_error += 1
+
+                predictions = [neural_network.predict(val) for val in test_data]
+                test_error = calculate_error(predictions, expected_output)
+
+                test_errors.append(test_error)
+                if iters_without_error == 10:
+                    break
+            
+            avg_test_errors.append(np.mean(test_errors))
+        avg_test_errors_list.append(avg_test_errors)
+
+    
+    plt.figure()
+
+    mean = np.mean(avg_test_errors_list, axis=0)
+    std = np.std(avg_test_errors_list, axis=0)
+
+    plt.errorbar(range(1, 10), mean, fmt='o', yerr=std, capsize=6, label='Average Test Error')
+    plt.legend()
+    plt.xlabel('Cutoff Percentage')
+    plt.ylabel('Error')
+    plt.title(f'Error over Cutoff Percentage')
+    plt.savefig(f'results/cutoff_error_3b.png')
+
+
+
+    cutoff_correct = []
+    training_cutoff_correct = []
 
     for cutoff in range(1, 10):
         cutoff_percentage = cutoff/10
@@ -120,18 +167,17 @@ def main():
     std = np.std(cutoff_correct, axis=1)
 
     training_cutoff_correct = np.array(training_cutoff_correct)
-    training_mean = np.mean(training_cutoff_correct, axis=1)
-    training_std = np.std(training_cutoff_correct, axis=1)
+
 
     fig, ax = plt.subplots()
     ax.errorbar(range(1, 10), mean, fmt='o', yerr=std,  label='Testing')
-    # ax.errorbar(range(1, 10), training_mean,  fmt='o', label='Training')
-    plt.legend()
+
+    # plt.legend()
     ax.set_xlabel('Cutoff percentage')
     ax.set_ylabel('Accuracy')
-
-
     ax.legend()
+
+    plt.savefig(f'results/accuracy_3b.png')
     plt.show()
 
 

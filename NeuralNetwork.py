@@ -210,3 +210,47 @@ class AdamParams:
         m = self._get_m(iteration, gradient)
         v = self._get_v(iteration, gradient)
         return m / (np.sqrt(v + self.epsilon))
+
+
+def create_confusion_matrix(y_true, y_pred, n_classes=10):
+    # Initialize the confusion matrix to zeros
+    confusion_matrix = np.zeros((n_classes, n_classes), dtype=int)
+
+    # For each pair of true and predicted values...
+    for t, p in zip(y_true, y_pred):
+        # Increment the count in the confusion matrix
+        confusion_matrix[t][p] += 1
+
+    return confusion_matrix
+
+def calculate_precision(confusion_matrix, n_classes=10):
+    precisions = []
+    for i in range(n_classes):
+        TP = confusion_matrix[i][i]
+        FP = sum(confusion_matrix[j][i] for j in range(n_classes)) - TP
+        if TP + FP != 0:
+            precision = TP / (TP + FP)
+            precisions.append(precision)
+    return sum(precisions) / n_classes    
+
+def calculate_accuracy(confusion_matrix):
+    correct_predictions = np.trace(confusion_matrix)
+    total_predictions = np.sum(confusion_matrix)
+    accuracy = correct_predictions / total_predictions
+    return accuracy
+
+def calculate_recall(confusion_matrix, n_classes=10):
+    recalls = []
+    for i in range(n_classes):
+        TP = confusion_matrix[i][i]
+        FN = sum(confusion_matrix[i][j] for j in range(n_classes)) - TP
+        if TP + FN != 0:
+            recall = TP / (TP + FN)
+            recalls.append(recall)
+    return sum(recalls) / n_classes
+
+def calculate_f1_score(confusion_matrix, n_classes=10):
+    precition = calculate_precision(confusion_matrix, n_classes)
+    recall = calculate_recall(confusion_matrix, n_classes)
+    f1_score = 2 * (precition * recall) / (precition + recall)
+    return f1_score

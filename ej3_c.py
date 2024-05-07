@@ -52,7 +52,7 @@ def main():
 
     neural_network = NeuralNetwork(neurons_params, 20000)
 
-    min_error, iterations, best_weights_history, error_history = neural_network.train(example_data_input, example_data_output)
+    min_error, iterations, best_weights_history, error_bias_history, error_history = neural_network.train(example_data_input, example_data_output)
     print(f'Min error: {min_error} - Iterations: {iterations}')
     neural_network.dump_weights_to_file('results/weights.json')
 

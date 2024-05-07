@@ -6,17 +6,16 @@ from NeuralNetwork import NeuralNetwork, NeuronParams
 
 def calculate_correct(neural_network, test_data, example_data_output):
     correct = 0
-    for _ in range(50):
-        for i, val in enumerate(test_data):
-            guess = np.argmax(neural_network.predict(val))
-            true_class = np.argmax(example_data_output[i])
+    correct_guesses = [0 for _ in range(10)]
+    for i, val in enumerate(test_data):
+        guess = np.argmax(neural_network.predict(val))
+        true_class = np.argmax(example_data_output[i])
 
-            if guess == true_class:
-                correct += 1
+        if guess == true_class:
+            correct += 1
+            correct_guesses[true_class] += 1
 
-    correct = correct / 50
-
-    return correct
+    return correct, correct_guesses
 
 def main():
     with open('TP3-ej3-digitos.txt', 'r') as f:
@@ -43,16 +42,16 @@ def main():
     # example_data_output = np.array([[1], [1], [-1], [-1]])
 
     dimensions = len(example_data_input[0])
-    layer_one = [NeuronParams(dimensions, 0.1, 'linear', 0.2) for _ in range(100)]
-    layer_two = [NeuronParams(len(layer_one), 0.1,  'tan_h', 0.2) for _ in range(50)]
-    layer_three = [NeuronParams(len(layer_two), 0.1, 'sigmoid', 100) for _ in range(10)]
+    layer_one = [NeuronParams(dimensions, 0.1, 'tan_h', 0.2, optimizer="") for _ in range(100)]
+    layer_two = [NeuronParams(len(layer_one), 0.1,  'tan_h', 0.5, optimizer="") for _ in range(50)]
+    layer_three = [NeuronParams(len(layer_two), 0.1, 'sigmoid', 100, optimizer="") for _ in range(10)]
+    
     
 
     neurons_params = [layer_one, layer_two, layer_three]
 
     neural_network = NeuralNetwork(neurons_params, 20000)
-
-    min_error, iterations, best_weights_history, error_history = neural_network.train(example_data_input, example_data_output)
+    min_error, iterations, best_weights_history , best_biases_history, error_history = neural_network.train(example_data_input, example_data_output)
     print(f'Min error: {min_error} - Iterations: {iterations}')
     neural_network.dump_weights_to_file('results/weights.json')
 
@@ -66,9 +65,9 @@ def main():
         print(f'Result {i}: {result} - expected: {example_data_output[i]}')
         results.append(result)
 
-    # intensity = 0.3
+    intensity = 0.4
 
-    # test_data = [noise.gaussian_noise(example_data_input[i], intensity) for i in range(len(example_data_input))]
+    test_data = [noise.gaussian_noise(example_data_input[i], intensity) for i in range(len(example_data_input))]
 
     # for i, input_data in enumerate(test_data):
     #     noise.print_number(i, input_data)
@@ -78,18 +77,45 @@ def main():
     intensities = range(0, 50)
     intensities = [i/100 for i in intensities]
 
-    for intensity in intensities:
+    correct_guesses_by_number = [0 for _ in range(10)]
+    intensity=0.4
+
+    for j in range(1000):
         test_data = [noise.gaussian_noise(example_data_input[i], intensity) for i in range(len(example_data_input))]
+        correct, correct_guesses = calculate_correct(neural_network, test_data, example_data_output)
+        correct_guesses_by_number = [correct_guesses_by_number[i] + correct_guesses[i] for i in range(10)]
+        # for i in range(len(test_data)):
+        #     noise.print_number(i, test_data[i])
+        #     plt.savefig(f'results/gaussian_noise_{i}.png')
 
-        correct = calculate_correct(neural_network, test_data, example_data_output)
-        accuracies.append(correct/len(example_data_input))
-
+    correct_guesses_percentage_by_number = [correct_guesses_by_number[i]/1000 for i in range(10)]
     plt.figure()
+    plt.xlabel('Digit')
+    plt.ylabel('Correct Guesses')
+    plt.xticks(np.arange(10))
+    plt.title('Correct Guesses by Digit - Gaussian Noise')
+    plt.bar(np.arange(10), correct_guesses_percentage_by_number)
 
-    plt.plot(intensities, accuracies)
-    plt.xlabel('Intensity')
-    plt.ylabel('Success Rate')
-    plt.title('Success Rate vs Intensity - Gaussian Noise')
+    # print(f'Correct: {correct}')
+    # for j in range(10):
+    #     print(f'Number - {j}: {correct_guesses[j]}')
+
+    # for intensity in intensities:
+    #     acum= []
+    #     for _ in range(10):
+    #         test_data = [noise.gaussian_noise(example_data_input[i], intensity) for i in range(len(example_data_input))]
+    #         correct = calculate_correct(neural_network, test_data, example_data_output)
+    #         acum.append(correct/len(example_data_input))
+    #     accuracies.append(acum)
+    
+    # avgs = np.mean(accuracies, axis=1)
+    # stds = np.std(accuracies, axis=1)
+
+    # plt.figure()
+    # plt.errorbar(intensities, avgs, yerr=stds, fmt='o')
+    # plt.xlabel('Intensity')
+    # plt.ylabel('Success Rate')
+    # plt.title('Success Rate vs Intensity - Gaussian Noise')
 
     # accuracies = []
     # intensities = range(1, 50)

@@ -2,7 +2,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 import noise
-from NeuralNetwork import NeuralNetwork, NeuronParams
+from NeuralNetwork import NeuralNetwork, NeuronParams, calculate_accuracy, calculate_precision, calculate_recall, calculate_f1_score, create_confusion_matrix
+import seaborn as sns
 
 def calculate_correct(neural_network, test_data, example_data_output):
     correct = 0
@@ -16,6 +17,7 @@ def calculate_correct(neural_network, test_data, example_data_output):
             correct_guesses[true_class] += 1
 
     return correct, correct_guesses
+
 
 def main():
     with open('TP3-ej3-digitos.txt', 'r') as f:
@@ -72,13 +74,15 @@ def main():
     # for i, input_data in enumerate(test_data):
     #     noise.print_number(i, input_data)
 
-    accuracies = []
 
     intensities = range(0, 50)
     intensities = [i/100 for i in intensities]
 
     correct_guesses_by_number = [0 for _ in range(10)]
     intensity=0.4
+
+    y_true = []
+    y_pred = []
 
     for j in range(1000):
         test_data = [noise.gaussian_noise(example_data_input[i], intensity) for i in range(len(example_data_input))]
@@ -87,35 +91,97 @@ def main():
         # for i in range(len(test_data)):
         #     noise.print_number(i, test_data[i])
         #     plt.savefig(f'results/gaussian_noise_{i}.png')
+        for i in range(len(test_data)):
+            y_true.append(np.argmax(example_data_output[i]))
+            y_pred.append(np.argmax(neural_network.predict(test_data[i])))
+            
+    cm = create_confusion_matrix(y_true, y_pred, 10)
+
+    plt.figure()
+    sns.heatmap(cm, annot=True, fmt='d', cmap='Blues')
+    plt.xlabel('Predicted')
+    plt.ylabel('Truth')
+    plt.title(f'Confusion Matrix - Gaussian Noise - Intensity {intensity}')
+    plt.savefig(f'results/confusion_matrix_gaussian_noise_{intensity}.png')
 
     correct_guesses_percentage_by_number = [correct_guesses_by_number[i]/1000 for i in range(10)]
     plt.figure()
     plt.xlabel('Digit')
     plt.ylabel('Correct Guesses')
     plt.xticks(np.arange(10))
-    plt.title('Correct Guesses by Digit - Gaussian Noise')
+    plt.title(f'Correct Guesses by Digit - Gaussian Noise - Intensity {intensity}')
     plt.bar(np.arange(10), correct_guesses_percentage_by_number)
+    plt.savefig(f'results/correct_guesses_gaussian_noise_{intensity}.png')
+
+   
 
     # print(f'Correct: {correct}')
     # for j in range(10):
     #     print(f'Number - {j}: {correct_guesses[j]}')
+    succes_rate = []
 
-    # for intensity in intensities:
-    #     acum= []
-    #     for _ in range(10):
-    #         test_data = [noise.gaussian_noise(example_data_input[i], intensity) for i in range(len(example_data_input))]
-    #         correct = calculate_correct(neural_network, test_data, example_data_output)
-    #         acum.append(correct/len(example_data_input))
-    #     accuracies.append(acum)
+    accuracies = []
+    precisions = []
+    recalls = []
+    f1_scores = []
+
+    for intensity in intensities:
+        acum= []
+        y_true = []
+        y_pred = []
+        for _ in range(10):
+            test_data = [noise.gaussian_noise(example_data_input[i], intensity) for i in range(len(example_data_input))]
+            correct, correct_guesses = calculate_correct(neural_network, test_data, example_data_output)
+            acum.append(correct/len(example_data_input))
+            for i in range(len(test_data)):
+                y_true.append(np.argmax(example_data_output[i]))
+                y_pred.append(np.argmax(neural_network.predict(test_data[i])))
+        succes_rate.append(acum)
+
+        cm = create_confusion_matrix(y_true, y_pred, 10)
+
+        precisions.append(calculate_precision(cm))
+        accuracies.append(calculate_accuracy(cm))
+        recalls.append(calculate_recall(cm))
+        f1_scores.append(calculate_f1_score(cm))
     
-    # avgs = np.mean(accuracies, axis=1)
-    # stds = np.std(accuracies, axis=1)
+    avgs = np.mean(succes_rate, axis=1)
+    stds = np.std(succes_rate, axis=1)
 
-    # plt.figure()
-    # plt.errorbar(intensities, avgs, yerr=stds, fmt='o')
-    # plt.xlabel('Intensity')
-    # plt.ylabel('Success Rate')
-    # plt.title('Success Rate vs Intensity - Gaussian Noise')
+    plt.figure()
+    plt.errorbar(intensities, avgs, yerr=stds, fmt='o')
+    plt.xlabel('Intensity')
+    plt.ylabel('Success Rate')
+    plt.title('Success Rate vs Intensity - Gaussian Noise')
+    plt.savefig(f'results/success_rate_gaussian_noise.png')
+
+    plt.figure()
+    plt.errorbar(intensities, precisions, fmt='o')
+    plt.xlabel('Intensity')
+    plt.ylabel('Precision')
+    plt.title('Precision vs Intensity - Gaussian Noise')
+    plt.savefig(f'results/precision_gaussian_noise.png')
+
+    plt.figure()
+    plt.errorbar(intensities, accuracies, fmt='o')
+    plt.xlabel('Intensity')
+    plt.ylabel('Accuracy')
+    plt.title('Accuracy vs Intensity - Gaussian Noise')
+    plt.savefig(f'results/accuracy_gaussian_noise.png')
+
+    plt.figure()
+    plt.errorbar(intensities, recalls, fmt='o')
+    plt.xlabel('Intensity')
+    plt.ylabel('Recall')
+    plt.title('Recall vs Intensity - Gaussian Noise')
+    plt.savefig(f'results/recall_gaussian_noise.png')
+
+    plt.figure()
+    plt.errorbar(intensities, f1_scores, fmt='o')
+    plt.xlabel('Intensity')
+    plt.ylabel('F1 Score')
+    plt.title('F1 Score vs Intensity - Gaussian Noise')
+    plt.savefig(f'results/f1_score_gaussian_noise.png')
 
     # accuracies = []
     # intensities = range(1, 50)

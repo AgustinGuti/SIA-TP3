@@ -2,7 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 import noise
-from NeuralNetwork import NeuralNetwork, NeuronParams
+from NeuralNetwork import NeuralNetwork, NeuronParams, calculate_error
 
 def calculate_correct(neural_network, test_data, example_data_output):
     correct = 0
@@ -50,9 +50,43 @@ def main():
 
     neurons_params = [layer_one, layer_two, layer_three]
 
-    neural_network = NeuralNetwork(neurons_params, 20000)
+    neural_network = NeuralNetwork(neurons_params)
 
-    min_error, iterations, best_weights_history, error_history = neural_network.train(example_data_input, example_data_output)
+    # min_error, iterations, best_weights_history, error_history = neural_network.train(example_data_input, example_data_output)
+    best_weights_history = []
+    best_biases_history = []
+    error_history = []
+
+    train_errors = []
+    test_errors = []
+    iters_without_error = 0
+    for _ in range(2000):
+        min_error, iterations, best_weights, best_biases, error = neural_network.train(example_data_input, example_data_output, 1)
+        if min_error <= 1e-5:
+            iters_without_error += 1
+
+        test_data = [noise.gaussian_noise(example_data_input[i], 0.2) for i in range(len(example_data_input))]
+        predictions = [neural_network.predict(val) for val in test_data]
+        test_error = calculate_error(predictions, example_data_output)
+
+        best_weights_history.append(best_weights)
+        best_biases_history.append(best_biases)
+        error_history.append(error)
+        train_errors.append(min_error)
+        test_errors.append(test_error)
+        if iters_without_error == 10:
+            break
+
+    plt.figure()
+
+    plt.plot(range(len(train_errors)), train_errors, label='Training Error')
+    plt.plot(range(len(test_errors)), test_errors, label='Test Error - Gaussian Noise 0.2')
+    plt.legend()
+    plt.xlabel('Epochs')
+    plt.ylabel('Error')
+    plt.title(f'Error over Epochs')
+    plt.savefig(f'results/train_error_3c.png')
+
     print(f'Min error: {min_error} - Iterations: {iterations}')
     neural_network.dump_weights_to_file('results/weights.json')
 

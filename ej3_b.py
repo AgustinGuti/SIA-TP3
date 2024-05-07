@@ -1,7 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
-from NeuralNetwork import NeuralNetwork, NeuronParams
+from NeuralNetwork import NeuralNetwork, NeuronParams, calculate_error
 
 def main():
     with open('TP3-ej3-digitos.txt', 'r') as f:
@@ -16,6 +16,9 @@ def main():
     input_data = data[:cutoff]
     output_data = all_output_data[:cutoff]
 
+    test_data = data[cutoff:]
+    expected_output = all_output_data[cutoff:]
+
     dimensions = len(input_data[0])
     layer_one = [NeuronParams(dimensions, 0.01, 'linear', 0.2, optimizer='adam') for _ in range(100)]
     layer_two = [NeuronParams(len(layer_one), 0.01,  'linear', 0.5, optimizer='adam') for _ in range(50)]
@@ -27,6 +30,33 @@ def main():
 
     cutoff_correct = []
     training_cutoff_correct = []
+
+    train_errors = []
+    test_errors = []
+    iters_without_error = 0
+    neural_network = NeuralNetwork(neurons_params)
+    for _ in range(1000):
+        min_error, iterations, best_weights, best_biases, error = neural_network.train(input_data, output_data, 1)
+        if min_error <= 1e-5:
+            iters_without_error += 1
+
+        predictions = [neural_network.predict(val) for val in test_data]
+        test_error = calculate_error(predictions, expected_output)
+
+        train_errors.append(min_error)
+        test_errors.append(test_error)
+        if iters_without_error == 10:
+            break
+
+    plt.figure()
+
+    plt.plot(range(len(train_errors)), train_errors, label='Training Error')
+    plt.plot(range(len(test_errors)), test_errors, label='Test Error')
+    plt.legend()
+    plt.xlabel('Epochs')
+    plt.ylabel('Error')
+    plt.title(f'Error over Epochs')
+    plt.savefig(f'results/train_error_3b.png')
 
     for cutoff in range(1, 10):
         cutoff_percentage = cutoff/10
@@ -43,8 +73,8 @@ def main():
             input_data = [input_data[i] for i in indices]  # Use the shuffled indices to shuffle input_data and output_data
             output_data = [output_data[i] for i in indices]
 
-            neural_network = NeuralNetwork(neurons_params, 1000)
-            min_error, iterations, best_weights_history, best_biases_history, ersror_history = neural_network.train(input_data, output_data)
+            neural_network = NeuralNetwork(neurons_params)
+            min_error, iterations, best_weights_history, best_biases_history, ersror_history = neural_network.train(input_data, output_data, 1000)
             # print(f'Min error: {min_error} - Iterations: {iterations}')
             # neural_network.dump_weights_to_file('results/weights.json')
 
@@ -94,7 +124,7 @@ def main():
     training_std = np.std(training_cutoff_correct, axis=1)
 
     fig, ax = plt.subplots()
-    ax.errorbar(range(1, 10), mean, fmt='o', label='Testing')
+    ax.errorbar(range(1, 10), mean, fmt='o', yerr=std,  label='Testing')
     # ax.errorbar(range(1, 10), training_mean,  fmt='o', label='Training')
     plt.legend()
     ax.set_xlabel('Cutoff percentage')

@@ -24,10 +24,9 @@ class NeuronParams:
         self.optimizer = optimizer
    
 class NeuralNetwork:
-    def __init__(self, params: list, max_iter=1000):
+    def __init__(self, params: list):
         self.layers = [Layer(params[i], i) for i in range(len(params))]
         self.min_error = sys.maxsize
-        self.max_iter = max_iter
 
     def predict(self, data_input, best=True):
         results = []
@@ -73,12 +72,12 @@ class NeuralNetwork:
             print(f'Layer: {layer.id}')
             print(f'Weights: {layer.weights}')
 
-    def train(self, data_input, expected_output):
+    def train(self, data_input, expected_output, iters):
         iteration = 0
         best_weights_history = []
         best_biases_history = []
         error_history = []
-        while self.min_error > 1e-5 and iteration < self.max_iter:
+        while self.min_error > 1e-5 and iteration < iters:
             mu = np.random.randint(0, len(data_input))
 
             results = []
@@ -95,7 +94,7 @@ class NeuralNetwork:
                     training_input = data_input[mu]
                 gradient = layer.train(training_input, gradient, iteration)
                 
-            error = sum(sum((expected_output[mu] - self.process(data_input[mu]))**2 for mu in range(0, len(expected_output)))/len(expected_output))
+            error = calculate_error(self.predict(data_input), expected_output)
 
             error_history.append(error)
             best_weights_history.append(self.get_weights())
@@ -112,6 +111,9 @@ class NeuralNetwork:
 
             iteration += 1
         return self.min_error, iteration, best_weights_history, best_biases_history, error_history
+
+def calculate_error(predictions, expected_output):
+    return sum(sum((expected_output[i] - predictions[i])**2 for i in range(len(predictions)))/len(predictions))
 
 class Layer:
     def __init__(self, params: list[NeuronParams], id):
@@ -150,7 +152,6 @@ class Layer:
 
     def train(self, training_input, gradient, iteration):
         new_gradient = np.dot(self.weights.T, gradient)
-
 
         if self.optimizer == 'momentum':
             change  = self.momentum_params.get_m(iteration, gradient)

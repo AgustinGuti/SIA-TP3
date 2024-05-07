@@ -1,7 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
-from NeuralNetwork import NeuralNetwork, NeuronParams
+from NeuralNetwork import NeuralNetwork, NeuronParams, calculate_error
 
 def main():
     example_data_input = np.array([[-1, 1], [1, -1], [-1, -1], [1, 1]])
@@ -14,8 +14,29 @@ def main():
 
     neurons_params = [layer_one, layer_two, layer_three]
 
-    neural_network = NeuralNetwork(neurons_params, 10000)
-    min_error, iterations, best_weights_history, best_biases_history, error_history = neural_network.train(example_data_input, example_data_output)
+    neural_network = NeuralNetwork(neurons_params)
+    train_errors = []
+      
+    best_weights_history = []
+    best_biases_history = []
+    error_history = []
+    for _ in range(200):
+        min_error, iterations, best_weights, best_biases, error = neural_network.train(example_data_input, example_data_output, 1)
+        best_weights_history.append(best_weights)
+        best_biases_history.append(best_biases)
+        error_history.append(error)
+        train_errors.append(min_error)
+
+    plt.figure()
+
+    plt.plot(range(len(train_errors)), train_errors, label='Training Error')
+    plt.legend()
+    plt.xlabel('Epochs')
+    plt.ylabel('Error')
+    plt.title(f'Training Error over Epochs')
+    plt.savefig(f'results/train_error_3a.png')
+
+    # min_error, iterations, best_weights_history, best_biases_history, error_history = neural_network.train(example_data_input, example_data_output)
     neural_network.print_weights()
     print(f'Min error: {min_error} - Iterations: {iterations}')
 
@@ -34,7 +55,7 @@ def main():
 
     ax.scatter(example_data_input[:, 0], example_data_input[:, 1], c=example_data_output, cmap='coolwarm')
 
-    plt.savefig('results/result_3a_3.png')
+    # plt.savefig('results/result_3a_3.png')
 
     fig, ax2 = plt.subplots()
     line, = ax2.plot([], [], lw=2)
@@ -71,10 +92,10 @@ def main():
         return line,
 
     ani = animation.FuncAnimation(fig, update, frames=len(weight_history_extended), init_func=init, blit=False, interval=100, repeat_delay=1000)
-    ani.save('results/result_3a_3_animation.gif', writer='imagemagick', fps=fps)
+    # ani.save('results/result_3a_3_animation.gif', writer='imagemagick', fps=fps)
 
 
-    # plt.show()
+    plt.show()
 
 if __name__ == "__main__":
     main()

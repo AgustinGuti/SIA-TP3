@@ -59,9 +59,9 @@ def main():
     plt.title(f'Error over Epochs')
     plt.savefig(f'results/train_error_3b.png')
 
-    avg_test_errors_list = []
-    for _ in range(10):
-        avg_test_errors = []
+    test_errors_list = []
+    for _ in range(100):
+        test_errors = []
 
         for cutoff in range(1, 10):
             cutoff_percentage = cutoff/10
@@ -69,29 +69,28 @@ def main():
             input_data = data[:cutoff]
             output_data = all_output_data[:cutoff]     
 
-            test_errors = []
+            test_data = data[cutoff:]
+            expected_output = all_output_data[cutoff:]
+
             iters_without_error = 0
             neural_network = NeuralNetwork(neurons_params)
-            for _ in range(1000):
-                min_error, iterations, best_weights, best_biases, error = neural_network.train(input_data, output_data, 1)
-                if min_error <= 1e-5:
-                    iters_without_error += 1
+            # for _ in range(1000):
+            min_error, iterations, best_weights, best_biases, error = neural_network.train(input_data, output_data, 1000)
+         
+            predictions = [neural_network.predict(val) for val in test_data]
+            # print(f'cutoff: {cutoff_percentage}')
+            # print(f'predictions: {predictions}')
 
-                predictions = [neural_network.predict(val) for val in test_data]
-                test_error = calculate_error(predictions, expected_output)
-
-                test_errors.append(test_error)
-                if iters_without_error == 10:
-                    break
-            
-            avg_test_errors.append(np.mean(test_errors))
-        avg_test_errors_list.append(avg_test_errors)
+            test_error = calculate_error(predictions, expected_output)
+            test_errors.append(test_error)
+    
+        test_errors_list.append(test_errors)
 
     
     plt.figure()
 
-    mean = np.mean(avg_test_errors_list, axis=0)
-    std = np.std(avg_test_errors_list, axis=0)
+    mean = np.mean(test_errors_list, axis=0)
+    std = np.std(test_errors_list, axis=0)
 
     plt.errorbar(range(1, 10), mean, fmt='o', yerr=std, capsize=6, label='Average Test Error')
     plt.legend()

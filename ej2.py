@@ -116,15 +116,14 @@ def main():
     example_data_input = data[[col for col in data.columns if col.startswith('x')]].values    
     example_data_output = data['y'].values
 
-    # perm = np.random.permutation(len(example_data_input))
+    perm = np.random.permutation(len(example_data_input))
 
-    # example_data_input = example_data_input[perm]
-    # example_data_output = example_data_output[perm]
+    example_data_input = example_data_input[perm]
+    example_data_output = example_data_output[perm]
 
-
-    activation_function = 'linear'
-    beta = 0.3
-    learning_rate = 0.01
+    activation_function = 'tan_h'
+    beta = 0.5
+    learning_rate = 0.1
 
     # Min-Max scaling
     min_val = np.min(example_data_output)
@@ -145,164 +144,309 @@ def main():
     min_errors = []
     test_errors = []
 
-    # fig = plt.figure()
-    # ax = fig.add_subplot(111, projection='3d')
 
-    # sizes = (test_output - test_output.min()) / (test_output.max() - test_output.min()) * 100
+    fig = plt.figure()
+    ax = fig.add_subplot(111, projection='3d')
 
-    # x = test_data[:, 0]
-    # y = test_data[:, 1]
-    # z = test_data[:, 2]
-    # ax.scatter(x, y, z, s=sizes, c = test_output)
+    sizes = (test_output - test_output.min()) / (test_output.max() - test_output.min()) * 100 + 10
 
-    # ax.set_xlabel('x1')
-    # ax.set_ylabel('x2')
-    # ax.set_zlabel('x3')
-
-    # perceptron = Perceptron(len(training_data[0]), learning_rate, activation_function=activation_function, beta=beta)
-    # perceptron.train(training_data, training_output, 10000)
-
-    # predictions = np.array(perceptron.predict(test_data))
-    # test_errors = calculate_errors(predictions, test_output)
-    # # test_errors = scaler.inverse_transform(test_errors)
-
-    # # I want to graph errors 
-    # fig = plt.figure()
-    # ax = fig.add_subplot(111, projection='3d')
-
-    # x = test_data[:, 0]
-    # y = test_data[:, 1]
-    # z = test_data[:, 2]
-    # ax.scatter(x, y, z, s=[100]*len(test_errors),  c=test_errors, cmap='RdYlGn_r')
-
-    # ax.set_xlabel('x1')
-    # ax.set_ylabel('x2')
-    # ax.set_zlabel('x3')
-
-    # fig = plt.figure()
-    # ax = fig.add_subplot(111, projection='3d')
-
-    # sizes = (predictions - predictions.min()) / (predictions.max() - predictions.min()) * 100
-
-    # x = test_data[:, 0]
-    # y = test_data[:, 1]
-    # z = test_data[:, 2]
-    # ax.scatter(x, y, z, s=sizes, c=predictions)
-
-    # x = training_data[:, 0]
-    # y = training_data[:, 1]
-    # z = training_data[:, 2]
-
-    # sizes = (training_output - training_output.min()) / (training_output.max() - training_output.min()) * 100
-    # # ax.scatter(x, y, z, s=sizes, c='r')
-
-    # ax.set_xlabel('x1')
-    # ax.set_ylabel('x2')
-    # ax.set_zlabel('x3')
-
+    x = test_data[:, 0]
+    y = test_data[:, 1]
+    z = test_data[:, 2]
+    ax.scatter(x, y, z, s=sizes, c = test_output)
 
     perceptron = Perceptron(len(training_data[0]), learning_rate, activation_function=activation_function, beta=beta)
+    perceptron.train(training_data, training_output, 300)
+
+    predictions = np.array(perceptron.predict(test_data))
+    test_errors = calculate_errors(predictions, test_output)
+
+    print(f'test data: {test_data}')
+    print(f'prediction: {predictions}')
+    print(f'output: {test_output}')
+    print(f'error: {test_errors}')
+
+    fig = plt.figure()
+    ax = fig.add_subplot(111, projection='3d')
+
+    x = test_data[:, 0]
+    y = test_data[:, 1]
+    z = test_data[:, 2]
+    ax.scatter(x, y, z, s=[100]*len(test_errors),  c=test_errors, cmap='RdYlGn_r')
+
+    plt.title('Test Data Errors')
+
+    fig = plt.figure()
+    ax = fig.add_subplot(111, projection='3d')
+
+    sizes = (example_data_output - example_data_output.min()) / (example_data_output.max() - example_data_output.min()) * 100 + 10
+
+    x = example_data_input[:, 0]
+    y = example_data_input[:, 1]
+    z = example_data_input[:, 2]
+    ax.scatter(x, y, z, s=sizes, c = example_data_output)
+
+    plt.title('Original Data')
 
 
-    k = 7
-    fold_size = int(len(training_data) / k)
-    start = 0
-    end = fold_size
+    fig = plt.figure()
+    ax = fig.add_subplot(111, projection='3d')
+
+    predictions_1 = np.array(perceptron.predict(training_data))
+    predictions_1 = scaler.inverse_transform(predictions_1)
+
+    sizes = (predictions_1 - predictions_1.min()) / (predictions_1.max() - predictions_1.min()) * 100 + 10
+
+    x1 = training_data[:, 0]
+    y1 = training_data[:, 1]
+    z1 = training_data[:, 2]
+    ax.scatter(x1, y1, z1, s=[100]*len(predictions_1), c=predictions_1, label='Training Data')
+
+    x11 = test_data[:, 0]
+    y11 = test_data[:, 1]
+    z11 = test_data[:, 2]
+
+    predictions_11 = np.array(perceptron.predict(test_data))
+    predictions_11 = scaler.inverse_transform(predictions_11)
+
+    sizes = (predictions_11 - predictions_11.min()) / (predictions_11.max() - predictions_11.min()) * 100 + 10
+    ax.scatter(x11, y11, z11, s=[50]*len(predictions_11), c=predictions_11, label='Test Data')
+
+    plt.legend()
+    plt.title('Predictions for Training and Test Data')
+
+
+    fig = plt.figure()
+    ax = fig.add_subplot(111, projection='3d')
+
+    errors1 = calculate_errors(predictions_1, training_output)
+    errors2 = calculate_errors(predictions_11, test_output)
+    ax.scatter(x1, y1, z1, s=[100]*len(errors1),  c=errors1, cmap='RdYlGn_r', label='Training Data')
+    ax.scatter(x11, y11, z11, s=[50]*len(errors2), c=errors2, cmap='RdYlGn_r', label='Test Data')
+
+    train_error = calculate_error(predictions_1, training_output)
+    test_error = calculate_error(predictions_11, test_output)
+
+    plt.legend()
+    plt.title(f'Errors for Training and Test Data - Train Error: {train_error} - Test Error: {test_error}')
+
+
+
+
+    perceptron_2 = Perceptron(len(training_data[0]), 0.1, activation_function='tan_h', beta=0.4)
+    perceptron_2.train(training_data, training_output, 1000)
+
+
+    fig = plt.figure()
+    ax = fig.add_subplot(111, projection='3d')
+
+    x1_values = np.linspace(np.min(training_data[:, 0]), np.max(training_data[:, 0]), 15)
+    x2_values = np.linspace(np.min(training_data[:, 1]), np.max(training_data[:, 1]), 15)
+    x3_values = np.linspace(np.min(training_data[:, 2]), np.max(training_data[:, 2]), 15)
+
+    x1, x2, x3 = np.meshgrid(x1_values, x2_values, x3_values)
+
+    x1 = x1.flatten()
+    x2 = x2.flatten()
+    x3 = x3.flatten()
+
+    predictions_2 = np.array(perceptron_2.predict(np.array([x1, x2, x3]).T))
+    predictions_2 = scaler.inverse_transform(predictions_2)
+
+    sizes = [100]*len(predictions_2)
+
+    ax.scatter(x1, x2, x3, s=sizes, c=predictions_2)
+
+    ax.set_xlabel('x1')
+    ax.set_ylabel('x2')
+    ax.set_zlabel('x3')
+    plt.title('TanH Activation Function')
+
+    # perceptron_2 = Perceptron(len(training_data[0]), 0.1, activation_function='sigmoid', beta=0.3)
+    # perceptron_2.train(training_data, training_output, 1000)
+
+
+    # fig = plt.figure()
+    # ax = fig.add_subplot(111, projection='3d')
+
+    # x1_values = np.linspace(np.min(test_data[:, 0]), np.max(test_data[:, 0]), 15)
+    # x2_values = np.linspace(np.min(test_data[:, 1]), np.max(test_data[:, 1]), 15)
+    # x3_values = np.linspace(np.min(test_data[:, 2]), np.max(test_data[:, 2]), 15)
+
+    # x1, x2, x3 = np.meshgrid(x1_values, x2_values, x3_values)
+
+    # x1 = x1.flatten()
+    # x2 = x2.flatten()
+    # x3 = x3.flatten()
+
+    # predictions_2 = np.array(perceptron_2.predict(np.array([x1, x2, x3]).T))
+    # predictions_2 = scaler.inverse_transform(predictions_2)
+
+    # sizes = [100]*len(predictions_2)
+
+    # ax.scatter(x1, x2, x3, s=sizes, c=predictions_2)
+
+    # ax.set_xlabel('x1')
+    # ax.set_ylabel('x2')
+    # ax.set_zlabel('x3')
+    # plt.title('Sigmoid Activation Function')
+
+    # perceptron_2 = Perceptron(len(training_data[0]), 0.001, activation_function='linear', beta=0.3)
+    # perceptron_2.train(training_data, training_output, 1000)
+
+
+    # fig = plt.figure()
+    # ax = fig.add_subplot(111, projection='3d')
+
+    # x1_values = np.linspace(np.min(test_data[:, 0]), np.max(test_data[:, 0]), 15)
+    # x2_values = np.linspace(np.min(test_data[:, 1]), np.max(test_data[:, 1]), 15)
+    # x3_values = np.linspace(np.min(test_data[:, 2]), np.max(test_data[:, 2]), 15)
+
+    # x1, x2, x3 = np.meshgrid(x1_values, x2_values, x3_values)
+
+    # x1 = x1.flatten()
+    # x2 = x2.flatten()
+    # x3 = x3.flatten()
+
+    # predictions_2 = np.array(perceptron_2.predict(np.array([x1, x2, x3]).T))
+    # predictions_2 = scaler.inverse_transform(predictions_2)
+
+    # # sizes = (predictions_2 - predictions_2.min()) / (predictions_2.max() - predictions_2.min()) * 100 + 10
+    # sizes = [100]*len(predictions_2)
+
+    # ax.scatter(x1, x2, x3, s=sizes, c=predictions_2)
+
+    # ax.set_xlabel('x1')
+    # ax.set_ylabel('x2')
+    # ax.set_zlabel('x3')
+    # plt.title('Linear Activation Function')
+
+
+
+    fig = plt.figure()
+    ax = fig.add_subplot(111, projection='3d')
+
+    sizes = (predictions - predictions.min()) / (predictions.max() - predictions.min()) * 100 + 10
+
+    x = test_data[:, 0]
+    y = test_data[:, 1]
+    z = test_data[:, 2]
+    ax.scatter(x, y, z, s=sizes, c=predictions)
+
+    x = training_data[:, 0]
+    y = training_data[:, 1]
+    z = training_data[:, 2]
+
+    sizes = (training_output - training_output.min()) / (training_output.max() - training_output.min()) * 100 + 10
+    # ax.scatter(x, y, z, s=sizes, c='r')
+
+    ax.set_xlabel('x1')
+    ax.set_ylabel('x2')
+    ax.set_zlabel('x3')
+
+
+    # perceptron = Perceptron(len(training_data[0]), learning_rate, activation_function=activation_function, beta=beta)
+
+
+    # k = 7
+    # fold_size = int(len(training_data) / k)
+    # start = 0
+    # end = fold_size
  
-    fold_errors_fold = []
-    fold_errors_fold = []
-    for j in range(k-1):
-        perceptron = Perceptron(len(training_data[0]), learning_rate, activation_function=activation_function, beta=beta)
-        test_data = training_data[start:end]
-        test_output = training_output[start:end]
-        training_data_fold = np.concatenate((training_data[:start], training_data[end:]))
-        training_output_fold = np.concatenate((training_output[:start], training_output[end:]))
+    # fold_errors_fold = []
+    # fold_errors_fold = []
+    # for j in range(k-1):
+    #     perceptron = Perceptron(len(training_data[0]), learning_rate, activation_function=activation_function, beta=beta)
+    #     test_data = training_data[start:end]
+    #     test_output = training_output[start:end]
+    #     training_data_fold = np.concatenate((training_data[:start], training_data[end:]))
+    #     training_output_fold = np.concatenate((training_output[:start], training_output[end:]))
 
-        test_errors = []
-        train_errors = []
+    #     test_errors = []
+    #     train_errors = []
       
-        for _ in range(300):
-            weights, bias, min_error, weight_history, error_history, bias_history = perceptron.train(training_data_fold, training_output_fold, 1)
+    #     for _ in range(300):
+    #         weights, bias, min_error, weight_history, error_history, bias_history = perceptron.train(training_data_fold, training_output_fold, 1)
 
-            train_predictions = perceptron.predict(training_data_fold)
-            local_train_predictions = scaler.inverse_transform(train_predictions)
-            local_output_fold = scaler.inverse_transform(training_output_fold)
-            train_error = calculate_error(local_train_predictions, local_output_fold)
+    #         train_predictions = perceptron.predict(training_data_fold)
+    #         local_train_predictions = scaler.inverse_transform(train_predictions)
+    #         local_output_fold = scaler.inverse_transform(training_output_fold)
+    #         train_error = calculate_error(local_train_predictions, local_output_fold)
 
-            predictions = perceptron.predict(test_data)
-            local_predictions = scaler.inverse_transform(predictions)
-            local_test_output = scaler.inverse_transform(test_output)
-            test_error = calculate_error(local_predictions, local_test_output)
+    #         predictions = perceptron.predict(test_data)
+    #         local_predictions = scaler.inverse_transform(predictions)
+    #         local_test_output = scaler.inverse_transform(test_output)
+    #         test_error = calculate_error(local_predictions, local_test_output)
 
-            test_errors.append(test_error)
-            train_errors.append(train_error)
+    #         test_errors.append(test_error)
+    #         train_errors.append(train_error)
 
-        fold_errors_fold.append(test_errors[len(test_errors) - 1])
-        fold_errors_fold.append(train_errors[len(train_errors) - 1])
+    #     fold_errors_fold.append(test_errors[len(test_errors) - 1])
+    #     fold_errors_fold.append(train_errors[len(train_errors) - 1])
 
 
-        plt.figure()
+    #     plt.figure()
     
-        plt.plot(range(len(train_errors)), train_errors, label='Training Error')
-        plt.plot(range(len(test_errors)), test_errors, label='Test Error')
-        plt.legend()
-        plt.xlabel('Epochs')
-        plt.ylabel('Error')
-        plt.title(f'Error vs Epochs Fold {j + 1}')
-        plt.savefig(f'results/Error_vs_Epochs_Fold_{j + 1}.png')
+    #     plt.plot(range(len(train_errors)), train_errors, label='Training Error')
+    #     plt.plot(range(len(test_errors)), test_errors, label='Test Error')
+    #     plt.legend()
+    #     plt.xlabel('Epochs')
+    #     plt.ylabel('Error')
+    #     plt.title(f'Error vs Epochs Fold {j + 1}')
+    #     plt.savefig(f'results/Error_vs_Epochs_Fold_{j + 1}.png')
     
-        start = end
-        end += fold_size
+    #     start = end
+    #     end += fold_size
 
-    plt.figure()
-    plt.errorbar(range(1, k), [np.mean(errors) for errors in fold_errors_fold[1::2]], yerr=[np.std(errors) for errors in fold_errors_fold[1::2]], fmt='o-', label='Training Error')
-    plt.errorbar(range(1, k), [np.mean(errors) for errors in fold_errors_fold[0::2]], yerr=[np.std(errors) for errors in fold_errors_fold[0::2]], fmt='o-', label='Test Error')
-    plt.xlabel('Fold')
-    plt.ylabel('Error')
-    plt.title('Error vs Fold')
-    plt.legend()
-    plt.savefig('results/Error_vs_Fold.png')
-
-    training_percentaje_errors = []
-    test_percentage_errors = []
-    for training_percentage in [i/10 for i in range(1, 10)]:
-        cutoff = int(len(example_data_input) * training_percentage)
-
-        # Convert your data to numpy arrays for easier manipulation
-        training_data = example_data_input[:cutoff]
-        training_output = example_data_output[:cutoff]
-
-        perceptron = Perceptron(len(training_data[0]), learning_rate, activation_function=activation_function, beta=beta)
-
-        test_errors = []
-        train_errors = []
-        for _ in range(150):
-            weights, bias, min_error, weight_history, error_history, bias_history = perceptron.train(training_data, training_output, 1)
-            train_errors.append(min_error)
-            predictions = perceptron.predict(test_data)
-            test_error = calculate_error(predictions, test_output)
-            test_error = scaler.inverse_transform(test_error)
-            test_errors.append(test_error)
-    
-        training_percentaje_errors.append(train_errors[len(train_errors) - 1])
-        test_percentage_errors.append(test_errors[len(test_errors) - 1])
     # plt.figure()
-    
-    # plt.plot(range(len(train_errors)), train_errors, label='Training Error')
-    # plt.plot(range(len(test_errors)), test_errors, label='Test Error')
-    # plt.legend()
-    # plt.xlabel('Epochs')
+    # plt.errorbar(range(1, k), [np.mean(errors) for errors in fold_errors_fold[1::2]], yerr=[np.std(errors) for errors in fold_errors_fold[1::2]], fmt='o-', label='Training Error')
+    # plt.errorbar(range(1, k), [np.mean(errors) for errors in fold_errors_fold[0::2]], yerr=[np.std(errors) for errors in fold_errors_fold[0::2]], fmt='o-', label='Test Error')
+    # plt.xlabel('Fold')
     # plt.ylabel('Error')
-    # plt.title(f'Error vs Epochs - Training Percentage {training_percentage}')
+    # plt.title('Error vs Fold')
+    # plt.legend()
+    # plt.savefig('results/Error_vs_Fold.png')
 
-    plt.figure()
-    plt.errorbar([i/10 for i in range(1, 10)], training_percentaje_errors, fmt='o-', label='Training Error')
-    plt.errorbar([i/10 for i in range(1, 10)], test_percentage_errors, fmt='o-', label='Test Error')
-    plt.xlabel('Training Percentage')
-    plt.ylabel('Error')
-    plt.title('Error vs Training Percentage')
-    plt.legend()
-    plt.savefig('results/Error_vs_Training_Percentage.png')
+    # training_percentaje_errors = []
+    # test_percentage_errors = []
+    # for training_percentage in [i/10 for i in range(1, 10)]:
+    #     cutoff = int(len(example_data_input) * training_percentage)
+
+    #     # Convert your data to numpy arrays for easier manipulation
+    #     training_data = example_data_input[:cutoff]
+    #     training_output = example_data_output[:cutoff]
+
+    #     perceptron = Perceptron(len(training_data[0]), learning_rate, activation_function=activation_function, beta=beta)
+
+    #     test_errors = []
+    #     train_errors = []
+    #     for _ in range(150):
+    #         weights, bias, min_error, weight_history, error_history, bias_history = perceptron.train(training_data, training_output, 1)
+    #         train_errors.append(min_error)
+    #         predictions = perceptron.predict(test_data)
+    #         test_error = calculate_error(predictions, test_output)
+    #         test_error = scaler.inverse_transform(test_error)
+    #         test_errors.append(test_error)
+    
+    #     training_percentaje_errors.append(train_errors[len(train_errors) - 1])
+    #     test_percentage_errors.append(test_errors[len(test_errors) - 1])
+    # # plt.figure()
+    
+    # # plt.plot(range(len(train_errors)), train_errors, label='Training Error')
+    # # plt.plot(range(len(test_errors)), test_errors, label='Test Error')
+    # # plt.legend()
+    # # plt.xlabel('Epochs')
+    # # plt.ylabel('Error')
+    # # plt.title(f'Error vs Epochs - Training Percentage {training_percentage}')
+
+    # plt.figure()
+    # plt.errorbar([i/10 for i in range(1, 10)], training_percentaje_errors, fmt='o-', label='Training Error')
+    # plt.errorbar([i/10 for i in range(1, 10)], test_percentage_errors, fmt='o-', label='Test Error')
+    # plt.xlabel('Training Percentage')
+    # plt.ylabel('Error')
+    # plt.title('Error vs Training Percentage')
+    # plt.legend()
+    # plt.savefig('results/Error_vs_Training_Percentage.png')
 
 
     plt.show()

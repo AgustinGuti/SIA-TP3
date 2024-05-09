@@ -12,13 +12,13 @@ def main():
     configs = [
         {
             'activation_function': 'tan_h',
-            'beta': 1.3,
-            'learning_rate': 0.1
+            'beta': 0.5,
+            'learning_rate': 0.05
         },        
         {
             'activation_function': 'sigmoid',
-            'beta': 0.7,
-            'learning_rate': 0.1
+            'beta': 0.5,
+            'learning_rate': 0.2
         },
         {
             'activation_function': 'linear',

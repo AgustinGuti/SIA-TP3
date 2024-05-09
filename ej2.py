@@ -57,7 +57,7 @@ class Perceptron:
         weight_history.append(self.weights)
         error_history.append(self.min_error)
         bias_history.append(self.bias)
-        while self.min_error > 0.1 and i < max_epochs:
+        while self.min_error > 0 and i < max_epochs:
             mu = np.random.randint(0, len(data_input))
             value = data_input[mu]
            
@@ -120,7 +120,7 @@ def main():
     example_data_output = example_data_output[perm]
 
     activation_function = 'linear'
-    beta = 1.3
+    beta = 0.5
     learning_rate = 0.001
 
     # Min-Max scaling
@@ -162,7 +162,7 @@ def main():
         test_errors = []
         train_errors = []
       
-        for _ in range(300):
+        for _ in range(5000):
             weights, bias, min_error, weight_history, error_history, bias_history = perceptron.train(training_data_fold, training_output_fold, 1)
 
             train_predictions = perceptron.predict(training_data_fold)
@@ -182,15 +182,16 @@ def main():
         fold_errors_fold.append(train_errors[len(train_errors) - 1])
 
 
-        # plt.figure()
+        plt.figure()
     
-        # plt.plot(range(len(train_errors)), train_errors, label='Training Error')
-        # plt.plot(range(len(test_errors)), test_errors, label='Test Error')
-        # plt.legend()
-        # plt.xlabel('Epochs')
-        # plt.ylabel('Error')
-        # plt.title(f'Error vs Epochs Fold {j + 1}')
-        # plt.savefig(f'results/Error_vs_Epochs_Fold_{j + 1}.png')
+        plt.plot(range(len(train_errors)), train_errors, label='Training Error')
+        plt.plot(range(len(test_errors)), test_errors, label='Test Error')
+        plt.legend()
+        plt.ylim(0, 300)
+        plt.xlabel('Epochs')
+        plt.ylabel('Error')
+        plt.title(f'Error vs Epochs Fold {j + 1}')
+        plt.savefig(f'results/Error_vs_Epochs_Fold_{j + 1}.png')
     
         start = end
         end += fold_size
@@ -217,7 +218,7 @@ def main():
 
         test_errors = []
         train_errors = []
-        for _ in range(3000):
+        for _ in range(5000):
             weights, bias, min_error, weight_history, error_history, bias_history = perceptron.train(training_data, training_output, 1)
             
             train_predictions = perceptron.predict(training_data)

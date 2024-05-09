@@ -1,4 +1,4 @@
-from ej2 import Perceptron, Scaler, calculate_error
+from ej2 import Perceptron, Scaler, calculate_error, calculate_errors
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -9,22 +9,21 @@ def main():
     original_example_data_input = data[[col for col in data.columns if col.startswith('x')]].values    
     original_example_data_output = data['y'].values
    
-
     configs = [
         {
             'activation_function': 'tan_h',
-            'beta': 0.3,
+            'beta': 1.3,
             'learning_rate': 0.1
-        }, 
+        },        
         {
             'activation_function': 'sigmoid',
-            'beta': 0.3,
+            'beta': 0.7,
             'learning_rate': 0.1
         },
         {
             'activation_function': 'linear',
-            'beta': 0.5,
-            'learning_rate': 0.01
+            'beta': 1,
+            'learning_rate': 0.001
         }
     ]
 
@@ -42,8 +41,8 @@ def main():
         scaler = Scaler(min_val, max_val, activation_function)
         example_data_output = scaler.fit_transform(original_example_data_output)
 
-        # perceptron = Perceptron(len(training_data[0]), learning_rate, activation_function=activation_function, beta=beta)
         training_data = original_example_data_input
+
         training_output = example_data_output
 
         k = 4
@@ -64,8 +63,8 @@ def main():
             train_errors = []
             last_min_error = None
             iters_without_improvement = 0
-            for _ in range(300):
-                weights, bias, min_error, weight_history, error_history, bias_history = perceptron.train(training_data_fold, training_output_fold, 1)
+            for _ in range(5000):
+                perceptron.train(training_data_fold, training_output_fold, 1)
             
                 train_predictions = perceptron.predict(training_data_fold)
                 local_train_predictions = scaler.inverse_transform(train_predictions)
@@ -80,38 +79,49 @@ def main():
                 test_errors.append(test_error)
                 train_errors.append(train_error)
 
-                if last_min_error is not None and min_error >= last_min_error:
+                if last_min_error is not None and train_error >= last_min_error:
                     iters_without_improvement += 1
-                    if iters_without_improvement == 10:
+                    if iters_without_improvement == 500:
                         break
                 else:
                     iters_without_improvement = 0
-                    last_min_error = min_error
+                    last_min_error = train_error
 
             test_errors_fold.append(test_errors)
             train_errors_fold.append(train_errors)
+
+            start = end
+            end = end + fold_size
+      
+        for i in range(len(test_errors_fold)):
+            if len(test_errors_fold[i]) < 3000:
+                test_errors_fold[i] = test_errors_fold[i][:-475]
+                train_errors_fold[i] = train_errors_fold[i][:-475]
 
         max_len = max([len(errors) for errors in test_errors_fold])
         for i in range(len(test_errors_fold)):
             test_errors_fold[i] = test_errors_fold[i] + [test_errors_fold[i][-1]] * (max_len - len(test_errors_fold[i]))
             train_errors_fold[i] = train_errors_fold[i] + [train_errors_fold[i][-1]] * (max_len - len(train_errors_fold[i]))
 
+        # Sample the data
+        sample_rate = max(1, len(train_errors_fold[0]) // 50)
 
-        # plt.figure()
-        # last_test_errors = [errors[-1] for errors in test_errors_fold]
-        # last_train_errors = [errors[-1] for errors in train_errors_fold]
-        # plt.errorbar(range(1, k), last_train_errors, fmt='o-', label='Train Error')
-        # plt.errorbar(range(1, k), last_test_errors, fmt='o-', label='Test Error')
+        train_errors_fold_sampled = [errors[::sample_rate] for errors in train_errors_fold]
+        test_errors_fold_sampled = [errors[::sample_rate] for errors in test_errors_fold]
 
-        # plt.xlabel('Fold')
-        # plt.ylabel('Error')
-        # plt.title(f'Error vs Fold - {config["activation_function"]}')
-        # plt.legend()
-        # plt.savefig(f'results/Error_vs_Fold_graphs_1_{config["activation_function"]}.png')
+        sampled_epochs = range(0, len(train_errors_fold_sampled[0]) * sample_rate, sample_rate)
 
-        plt.figure()
-        plt.errorbar(range(len(train_errors_fold[0])), np.mean(train_errors_fold, axis=0), yerr=np.std(train_errors_fold, axis=0), capsize=5, fmt='o-', label='Train Error', color='#1F77B4', ecolor='#1F77B4', alpha=0.5)
-        plt.errorbar(range(len(test_errors_fold[0])), np.mean(test_errors_fold, axis=0), yerr=np.std(test_errors_fold, axis=0), capsize=5, fmt='o-', label='Test Error',  color='#FF7F0E', ecolor='#FF7F0E', alpha=0.5)
+        min_train_error = np.min(np.mean(train_errors_fold_sampled, axis=0))
+        min_test_error = np.min(np.mean(test_errors_fold_sampled, axis=0))
+
+        plt.figure()   
+
+        plt.errorbar(sampled_epochs, np.mean(train_errors_fold_sampled, axis=0), yerr=np.std(train_errors_fold_sampled, axis=0), capsize=5, fmt='o-', label='Train Error', color='#1F77B4', ecolor='#1F77B4', alpha=0.5)
+        plt.errorbar(sampled_epochs, np.mean(test_errors_fold_sampled, axis=0), yerr=np.std(test_errors_fold_sampled, axis=0), capsize=5, fmt='o-', label='Test Error',  color='#FF7F0E', ecolor='#FF7F0E', alpha=0.5)
+
+        plt.text(sampled_epochs[-1], np.mean(train_errors_fold_sampled, axis=0)[-1], f'Train Error: {min_train_error:.2f}', ha='right', va='top')
+        plt.text(sampled_epochs[-1], np.mean(test_errors_fold_sampled, axis=0)[-1], f'Test Error: {min_test_error:.2f}', ha='right', va='bottom')
+
 
         plt.xlabel('Epoch')
         plt.ylabel('Error')

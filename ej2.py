@@ -119,9 +119,9 @@ def main():
     example_data_input = example_data_input[perm]
     example_data_output = example_data_output[perm]
 
-    activation_function = 'linear'
+    activation_function = 'tan_h'
     beta = 0.5
-    learning_rate = 0.001
+    learning_rate = 0.05
 
     # Min-Max scaling
     min_val = np.min(example_data_output)
@@ -162,7 +162,7 @@ def main():
         test_errors = []
         train_errors = []
       
-        for _ in range(5000):
+        for _ in range(3000):
             weights, bias, min_error, weight_history, error_history, bias_history = perceptron.train(training_data_fold, training_output_fold, 1)
 
             train_predictions = perceptron.predict(training_data_fold)
@@ -190,6 +190,11 @@ def main():
         plt.ylim(0, 300)
         plt.xlabel('Epochs')
         plt.ylabel('Error')
+
+        plt.text(len(train_errors), train_errors[-1], f'Train Error: {train_errors[-1]:.2f}', ha='right', va='top')
+        plt.text(len(test_errors), test_errors[-1], f'Test Error: {test_errors[-1]:.2f}', ha='right', va='bottom')
+
+        # plt.text(sampled_epochs[-1], np.mean(test_errors_fold_sampled, axis=0)[-1], f'Test Error: {min_test_error:.2f}', ha='right', va='bottom')
         plt.title(f'Error vs Epochs Fold {j + 1}')
         plt.savefig(f'results/Error_vs_Epochs_Fold_{j + 1}.png')
     
